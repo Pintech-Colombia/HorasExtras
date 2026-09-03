@@ -1,6 +1,7 @@
 import React from 'react';
-import { Calendar, CheckCircle2, Mail, Users, PlusCircle, Settings, Building2, Sun, Moon } from 'lucide-react';
+import { Calendar, CheckCircle2, Mail, Users, PlusCircle, Settings, Building2, Sun, Moon, Cloud, Database, User as UserIcon, LogOut, LogIn } from 'lucide-react';
 import { CompanySettings } from '../types';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface NavbarProps {
   currentTab: 'calendar' | 'review' | 'gmail' | 'employees' | 'settings';
@@ -13,6 +14,9 @@ interface NavbarProps {
   onOpenNewRecordModal: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  userEmail?: string | null;
+  onOpenAuth: () => void;
+  onSignOut: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -26,7 +30,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewRecordModal,
   isDarkMode,
   onToggleTheme,
+  userEmail,
+  onOpenAuth,
+  onSignOut,
 }) => {
+  const isCloudActive = isSupabaseConfigured();
+
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -62,6 +71,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <button
+                onClick={onOpenAuth}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition border border-slate-700"
+                title="Cuenta / Conexión"
+              >
+                <UserIcon className="w-4 h-4" />
+              </button>
+
+              <button
                 onClick={onOpenNewRecordModal}
                 className="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition border border-slate-700"
               >
@@ -72,6 +89,30 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Month Selector & Quick Stats */}
           <div className="flex flex-wrap items-center gap-2.5 justify-between md:justify-end">
+            {/* Supabase Cloud Connection Status Badge */}
+            <button
+              onClick={onOpenAuth}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                isCloudActive
+                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/80 hover:bg-emerald-900/40'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+              }`}
+              title={isCloudActive ? 'Conectado a Supabase PostgreSQL' : 'Modo local activo. Clic para conectar Supabase'}
+            >
+              {isCloudActive ? (
+                <>
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Supabase Nube</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                </>
+              ) : (
+                <>
+                  <Database className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Modo Local</span>
+                </>
+              )}
+            </button>
+
             <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-1.5 text-xs">
               <span className="text-slate-400 font-medium">Mes:</span>
               <input
@@ -105,6 +146,30 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
+            {/* User Session Button / Auth Modal trigger */}
+            {userEmail ? (
+              <div className="hidden sm:flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
+                <span className="text-slate-300 max-w-[120px] truncate" title={userEmail}>
+                  {userEmail}
+                </span>
+                <button
+                  onClick={onSignOut}
+                  className="text-slate-400 hover:text-red-400 transition"
+                  title="Cerrar sesión"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenAuth}
+                className="hidden sm:flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition"
+              >
+                <LogIn className="w-3.5 h-3.5 text-slate-300" />
+                <span>Acceder</span>
+              </button>
+            )}
+
             {/* Light / Dark Mode Toggle Button (Desktop) */}
             <button
               onClick={onToggleTheme}
@@ -127,7 +192,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Desktop New Record Button */}
             <button
               onClick={onOpenNewRecordModal}
-              className="hidden md:flex bg-white hover:bg-slate-100 text-slate-900 px-3.5 py-1.5 rounded-lg text-xs font-bold items-center gap-1.5 transition shadow-sm"
+              className="hidden md:flex bg-white hover:bg-slate-100 text-slate-900 px-3.5 py-1.5 rounded-lg text-xs font-bold items-center gap-1.5 transition shadow-sm cursor-pointer"
             >
               <PlusCircle className="w-4 h-4 text-slate-900" />
               <span>Registrar Horas Extras</span>
