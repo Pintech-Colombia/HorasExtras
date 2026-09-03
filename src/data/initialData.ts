@@ -1,0 +1,186 @@
+import { Employee, OvertimeRecord, CompanySettings } from '../types';
+
+export const INITIAL_EMPLOYEES: Employee[] = [
+  {
+    id: 'emp-1',
+    documentId: '1020304050',
+    name: 'Carlos Alberto Mendoza',
+    position: 'Técnico de Planta y Producción',
+    department: 'Operaciones',
+    baseHourlyRate: 15000,
+    active: true,
+  },
+  {
+    id: 'emp-2',
+    documentId: '1098765432',
+    name: 'Ana Lucía Torres',
+    position: 'Supervisora de Logística',
+    department: 'Logística',
+    baseHourlyRate: 18500,
+    active: true,
+  },
+  {
+    id: 'emp-3',
+    documentId: '1012345678',
+    name: 'Javier Gómez Restrepo',
+    position: 'Mantenimiento Mecánico',
+    department: 'Mantenimiento',
+    baseHourlyRate: 16000,
+    active: true,
+  },
+  {
+    id: 'emp-4',
+    documentId: '1033445566',
+    name: 'María Paula Ríos',
+    position: 'Inspectora de Control de Calidad',
+    department: 'Calidad',
+    baseHourlyRate: 17000,
+    active: true,
+  },
+  {
+    id: 'emp-5',
+    documentId: '1088990011',
+    name: 'Diego Fernando Silva',
+    position: 'Conductor / Transportador',
+    department: 'Logística',
+    baseHourlyRate: 14500,
+    active: true,
+  },
+];
+
+export const INITIAL_SETTINGS: CompanySettings = {
+  companyName: 'Industrias y Suministros S.A.S.',
+  companyNIT: '900.123.456-7',
+  accountantName: 'Dr. Roberto Suárez (Contador)',
+  accountantEmail: 'contabilidad@empresa.com',
+  managerName: 'Ing. Fernando Morales',
+  managerTitle: 'Encargado de Operaciones y Planta',
+  currencySymbol: '$',
+};
+
+// Helper to construct dates for current year and month
+const getCurrentYearMonth = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return { year, month };
+};
+
+export const getInitialRecords = (): OvertimeRecord[] => {
+  const { year, month } = getCurrentYearMonth();
+
+  return [
+    {
+      id: 'rec-1',
+      date: `${year}-${month}-02`,
+      employeeId: 'emp-1',
+      employeeName: 'Carlos Alberto Mendoza',
+      hours: 3,
+      type: 'diurna',
+      status: 'verified_manager',
+      notes: 'Entrega urgente de pedido especial en planta',
+      verifiedByManager: true,
+      verifiedAt: `${year}-${month}-03T09:00:00Z`,
+      createdAt: `${year}-${month}-02T19:00:00Z`,
+    },
+    {
+      id: 'rec-2',
+      date: `${year}-${month}-02`,
+      employeeId: 'emp-3',
+      employeeName: 'Javier Gómez Restrepo',
+      hours: 2,
+      type: 'diurna',
+      status: 'verified_manager',
+      notes: 'Reparación preventiva de banda 2',
+      verifiedByManager: true,
+      verifiedAt: `${year}-${month}-03T09:00:00Z`,
+      createdAt: `${year}-${month}-02T18:30:00Z`,
+    },
+    {
+      id: 'rec-3',
+      date: `${year}-${month}-05`,
+      employeeId: 'emp-2',
+      employeeName: 'Ana Lucía Torres',
+      hours: 4,
+      type: 'nocturna',
+      status: 'verified_manager',
+      notes: 'Despacho nocturno de contenedores',
+      verifiedByManager: true,
+      verifiedAt: `${year}-${month}-06T08:30:00Z`,
+      createdAt: `${year}-${month}-05T22:00:00Z`,
+    },
+    {
+      id: 'rec-4',
+      date: `${year}-${month}-09`,
+      employeeId: 'emp-4',
+      employeeName: 'María Paula Ríos',
+      hours: 3.5,
+      type: 'diurna',
+      status: 'pending_review',
+      notes: 'Auditoría e inspección de lote final de exportación',
+      verifiedByManager: false,
+      createdAt: `${year}-${month}-09T19:30:00Z`,
+    },
+    {
+      id: 'rec-5',
+      date: `${year}-${month}-12`,
+      employeeId: 'emp-1',
+      employeeName: 'Carlos Alberto Mendoza',
+      hours: 4,
+      type: 'nocturna',
+      status: 'pending_review',
+      notes: 'Cierre de turno extendido por fallo eléctrico previo',
+      verifiedByManager: false,
+      createdAt: `${year}-${month}-12T23:00:00Z`,
+    },
+    {
+      id: 'rec-6',
+      date: `${year}-${month}-14`,
+      employeeId: 'emp-5',
+      employeeName: 'Diego Fernando Silva',
+      hours: 5,
+      type: 'festiva_diurna',
+      status: 'verified_manager',
+      notes: 'Ruta dominical de abastecimiento a cliente corporativo',
+      verifiedByManager: true,
+      verifiedAt: `${year}-${month}-15T08:00:00Z`,
+      createdAt: `${year}-${month}-14T15:00:00Z`,
+    },
+    {
+      id: 'rec-7',
+      date: `${year}-${month}-18`,
+      employeeId: 'emp-3',
+      employeeName: 'Javier Gómez Restrepo',
+      hours: 3,
+      type: 'diurna',
+      status: 'pending_review',
+      notes: 'Mantenimiento correctivo compresor principal',
+      verifiedByManager: false,
+      createdAt: `${year}-${month}-18T19:00:00Z`,
+    },
+    {
+      id: 'rec-8',
+      date: `${year}-${month}-21`,
+      employeeId: 'emp-2',
+      employeeName: 'Ana Lucía Torres',
+      hours: 2.5,
+      type: 'diurna',
+      status: 'pending_review',
+      notes: 'Inventario físico mensual de bodega',
+      verifiedByManager: false,
+      createdAt: `${year}-${month}-21T18:30:00Z`,
+    },
+    {
+      id: 'rec-9',
+      date: `${year}-${month}-25`,
+      employeeId: 'emp-1',
+      employeeName: 'Carlos Alberto Mendoza',
+      hours: 6,
+      type: 'festiva_diurna',
+      status: 'pending_review',
+      notes: 'Carga y descarga dominical extraordinaria',
+      verifiedByManager: false,
+      createdAt: `${year}-${month}-25T16:00:00Z`,
+    },
+  ];
+};

@@ -1,0 +1,6 @@
+{
+  "name": "Control de Horas Extras",
+  "description": "Sistema de registro, calendario y automatización de reportes de horas extras con plantilla y envío para Gmail y Contabilidad.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
