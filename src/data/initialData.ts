@@ -49,12 +49,12 @@ export const INITIAL_EMPLOYEES: Employee[] = [
 ];
 
 export const INITIAL_SETTINGS: CompanySettings = {
-  companyName: 'Industrias y Suministros S.A.S.',
-  companyNIT: '900.123.456-7',
-  accountantName: 'Dr. Roberto Suárez (Contador)',
-  accountantEmail: 'contabilidad@empresa.com',
-  managerName: 'Ing. Fernando Morales',
-  managerTitle: 'Encargado de Operaciones y Planta',
+  companyName: 'Pintech Colombia S.A.S.',
+  companyNIT: '901.456.789-0',
+  accountantName: 'Dpto. Contabilidad & Nómina',
+  accountantEmail: 'contabilidad@pintech.co',
+  managerName: 'Jefe de Operaciones & Planta',
+  managerTitle: 'Operaciones y Producción Pintech',
   currencySymbol: '$',
 };
 

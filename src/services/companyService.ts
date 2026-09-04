@@ -20,12 +20,12 @@ export const getCompanySettings = async (companyId?: string): Promise<CompanySet
 
     const comp = data[0];
     const mapped: CompanySettings = {
-      companyName: comp.name || 'Empresa',
-      companyNIT: comp.nit || '',
-      accountantName: comp.accountant_name || 'Contador',
-      accountantEmail: comp.accountant_email || 'contabilidad@empresa.com',
-      managerName: comp.manager_name || 'Encargado',
-      managerTitle: comp.manager_title || 'Operaciones',
+      companyName: comp.name || 'Pintech Colombia S.A.S.',
+      companyNIT: comp.nit || '901.456.789-0',
+      accountantName: comp.accountant_name || 'Dpto. Contabilidad & Nómina',
+      accountantEmail: comp.accountant_email || 'contabilidad@pintech.co',
+      managerName: comp.manager_name || 'Jefe de Operaciones & Planta',
+      managerTitle: comp.manager_title || 'Operaciones Pintech',
       currencySymbol: comp.currency_symbol || '$',
     };
 

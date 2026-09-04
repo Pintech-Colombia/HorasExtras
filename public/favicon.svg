@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="16" fill="#0f172a"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" stroke="#334155" stroke-width="2"/>
+  <!-- Pintech P Mark -->
+  <path d="M20 16H36C42.6274 16 48 21.3726 48 28C48 34.6274 42.6274 40 36 40H28V48H20V16Z" fill="url(#pintech-grad)"/>
+  <path d="M28 24H35C37.2091 24 39 25.7909 39 28C39 30.2091 37.2091 32 35 32H28V24Z" fill="#0f172a"/>
+  <!-- Tech Accent Dot -->
+  <circle cx="44" cy="44" r="4" fill="#38bdf8"/>
+  <defs>
+    <linearGradient id="pintech-grad" x1="20" y1="16" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+</svg>
