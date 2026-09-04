@@ -79,20 +79,20 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header Banner - Minimalist Slate */}
-      <div className="bg-slate-900 rounded-2xl p-6 text-white border border-slate-800 shadow-sm">
+      {/* Header Banner - Vercel Polarity Flipped #171717 */}
+      <div className="bg-[#171717] rounded-[14px] p-6 text-white border border-[#2a2a2a] shadow-vercel-card">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-slate-800 text-slate-300 text-xs font-semibold px-2.5 py-0.5 rounded border border-slate-700 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-300" />
+              <span className="caption-mono bg-white/5 text-neutral-300 text-[11px] px-2.5 py-1 rounded-[6px] border border-white/10 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-neutral-300" />
                 Conciliación de Nómina
               </span>
-              <span className="text-xs text-slate-400">Encargado: {settings.managerName}</span>
+              <span className="caption-mono text-[11px] text-neutral-400">Encargado: {settings.managerName}</span>
             </div>
-            <h2 className="text-xl font-bold text-white mt-2 tracking-tight">Revisión y Auditoría con el Encargado</h2>
-            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-              Audita y aprueba las horas extras registradas antes de generar la carta consolidada para el contador.
+            <h2 className="text-2xl font-semibold text-white mt-2.5 tracking-display-md">Revisión y Auditoría</h2>
+            <p className="text-xs text-neutral-400 mt-1 max-w-2xl font-sans">
+              Audita y concilia las horas extras registradas antes de generar la carta consolidada para el contador.
             </p>
           </div>
 
@@ -100,80 +100,80 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
             {pendingRecords.length > 0 && (
               <button
                 onClick={onVerifyAllMonth}
-                className="bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition shadow-sm"
+                className="bg-white hover:bg-neutral-100 text-[#171717] text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2 transition-all shadow-vercel-subtle"
               >
-                <CheckCheck className="w-4 h-4 text-slate-900" />
-                <span>Verificar Todo el Mes ({pendingRecords.length})</span>
+                <CheckCheck className="w-3.5 h-3.5 text-[#171717]" />
+                <span>Verificar Todo ({pendingRecords.length})</span>
               </button>
             )}
 
             <button
               onClick={onGoToGmailReport}
-              className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 border border-slate-700 transition"
+              className="bg-white/10 hover:bg-white/15 text-white text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2 border border-white/15 transition-all"
             >
-              <span>Ir a Reporte para Gmail</span>
+              <span>Ir a Reporte Gmail</span>
             </button>
           </div>
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-800">
-          <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/80">
-            <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-slate-300" />
-              Total Horas Registradas
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-neutral-800">
+          <div className="bg-[#202020] rounded-[10px] p-3.5 border border-[#2d2d2d]">
+            <span className="caption-mono text-[10px] text-neutral-400 flex items-center gap-1">
+              <Clock className="w-3 h-3 text-neutral-400" />
+              Total Horas
             </span>
-            <p className="text-lg font-bold text-white mt-1">{formatHoursDisplay(totalHours)}</p>
+            <p className="font-mono text-xl font-semibold text-white mt-1.5 tracking-tight">{formatHoursDisplay(totalHours)}</p>
           </div>
 
-          <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/80">
-            <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-slate-300" />
-              Horas Verificadas
+          <div className="bg-[#202020] rounded-[10px] p-3.5 border border-[#2d2d2d]">
+            <span className="caption-mono text-[10px] text-neutral-400 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+              Verificadas
             </span>
-            <p className="text-lg font-bold text-slate-200 mt-1">
+            <p className="font-mono text-xl font-semibold text-neutral-100 mt-1.5 tracking-tight">
               {formatHoursDisplay(verifiedHours)}
             </p>
           </div>
 
-          <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/80">
-            <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-              Pendientes de Revisión
+          <div className="bg-[#202020] rounded-[10px] p-3.5 border border-[#2d2d2d]">
+            <span className="caption-mono text-[10px] text-amber-400 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3 text-amber-400" />
+              Por Revisar
             </span>
-            <p className="text-lg font-bold text-amber-300 mt-1">{pendingRecords.length} reg</p>
+            <p className="font-mono text-xl font-semibold text-amber-300 mt-1.5 tracking-tight">{pendingRecords.length} <span className="text-xs font-sans text-amber-400/80 font-normal">reg</span></p>
           </div>
 
-          <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/80">
-            <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-              <DollarSign className="w-3.5 h-3.5 text-slate-300" />
-              Valor Est. Recargos
+          <div className="bg-[#202020] rounded-[10px] p-3.5 border border-[#2d2d2d]">
+            <span className="caption-mono text-[10px] text-neutral-400 flex items-center gap-1">
+              <DollarSign className="w-3 h-3 text-neutral-400" />
+              Est. Recargos
             </span>
-            <p className="text-lg font-bold text-white mt-1">{formatCurrency(totalSurchargeVal, settings.currencySymbol)}</p>
+            <p className="font-mono text-xl font-semibold text-white mt-1.5 tracking-tight">{formatCurrency(totalSurchargeVal, settings.currencySymbol)}</p>
           </div>
         </div>
       </div>
 
       {/* Filters Toolbar */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+      <div className="bg-white dark:bg-[#111111] rounded-[12px] p-3 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-subtle flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-neutral-400" />
           <input
             type="text"
             placeholder="Buscar por empleado, fecha o nota..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-800 text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+            className="form-input w-full text-xs pl-9 pr-3 h-9 rounded-[6px]"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Status Filter */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+          <div className="flex items-center bg-[#f5f5f5] dark:bg-[#1c1c1c] p-1 rounded-[8px] border border-[#ebebeb] dark:border-[#2c2c2c] text-xs">
             <button
               onClick={() => setFilterStatus('all')}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-                filterStatus === 'all' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500'
+              className={`px-3 py-1 rounded-[6px] font-medium transition text-xs ${
+                filterStatus === 'all' ? 'bg-white dark:bg-[#111111] text-[#171717] dark:text-white shadow-vercel-subtle' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
               Todos ({monthRecords.length})
@@ -181,8 +181,8 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
 
             <button
               onClick={() => setFilterStatus('pending')}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-                filterStatus === 'pending' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-slate-500'
+              className={`px-3 py-1 rounded-[6px] font-medium transition text-xs ${
+                filterStatus === 'pending' ? 'bg-amber-400 text-neutral-950 font-semibold shadow-vercel-subtle' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
               Por Revisar ({pendingRecords.length})
@@ -190,8 +190,8 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
 
             <button
               onClick={() => setFilterStatus('verified')}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-                filterStatus === 'verified' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm' : 'text-slate-500'
+              className={`px-3 py-1 rounded-[6px] font-medium transition text-xs ${
+                filterStatus === 'verified' ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] shadow-vercel-subtle' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
               Verificados ({verifiedRecords.length})
@@ -202,7 +202,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
           <select
             value={filterEmployee}
             onChange={(e) => setFilterEmployee(e.target.value)}
-            className="bg-slate-50 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none"
+            className="form-input text-xs h-9 px-3 rounded-[6px]"
           >
             <option value="all">Todos los empleados</option>
             {employees.map((e) => (
@@ -215,25 +215,25 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
       </div>
 
       {/* Audit Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-[#111111] rounded-[12px] border border-[#ebebeb] dark:border-[#262626] shadow-vercel-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+            <thead className="bg-[#fafafa] dark:bg-[#161616] text-neutral-500 dark:text-neutral-400 border-b border-[#ebebeb] dark:border-[#262626]">
               <tr>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3">Empleado</th>
-                <th className="px-4 py-3">Tipo de Extra</th>
-                <th className="px-4 py-3 text-center">Horas</th>
-                <th className="px-4 py-3 text-right">Recargo Est.</th>
-                <th className="px-4 py-3">Observaciones / Motivo</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
+                <th className="caption-mono px-4 py-3 text-[11px]">Estado</th>
+                <th className="caption-mono px-4 py-3 text-[11px]">Fecha</th>
+                <th className="caption-mono px-4 py-3 text-[11px]">Empleado</th>
+                <th className="caption-mono px-4 py-3 text-[11px]">Tipo de Extra</th>
+                <th className="caption-mono px-4 py-3 text-[11px] text-center">Horas</th>
+                <th className="caption-mono px-4 py-3 text-[11px] text-right">Recargo Est.</th>
+                <th className="caption-mono px-4 py-3 text-[11px]">Observaciones / Motivo</th>
+                <th className="caption-mono px-4 py-3 text-[11px] text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-[#ebebeb] dark:divide-[#262626]">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400">
+                  <td colSpan={8} className="text-center py-12 text-neutral-400 font-sans">
                     No se encontraron registros de horas extras con los filtros aplicados.
                   </td>
                 </tr>
@@ -246,27 +246,27 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                   return (
                     <tr
                       key={rec.id}
-                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition ${
+                      className={`hover:bg-[#fafafa] dark:hover:bg-[#171717]/70 transition-colors ${
                         !rec.verifiedByManager ? 'bg-amber-50/20 dark:bg-amber-950/10' : ''
                       }`}
                     >
                       {/* Status */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border ${
+                          className={`caption-mono inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[10px] border ${
                             rec.verifiedByManager
-                              ? 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
-                              : 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300'
+                              ? 'bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:border-neutral-700'
+                              : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'
                           }`}
                         >
                           {rec.verifiedByManager ? (
                             <>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
+                              <CheckCircle2 className="w-3 h-3 text-neutral-700 dark:text-neutral-300" />
                               <span>Verificado</span>
                             </>
                           ) : (
                             <>
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                              <AlertCircle className="w-3 h-3 text-amber-600" />
                               <span>Por Revisar</span>
                             </>
                           )}
@@ -274,25 +274,25 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                       </td>
 
                       {/* Date */}
-                      <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-900 dark:text-slate-200">
+                      <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-neutral-900 dark:text-neutral-200">
                         {rec.date}
                       </td>
 
                       {/* Employee */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="font-bold text-slate-900 dark:text-white">{rec.employeeName}</div>
-                        <div className="text-[10px] text-slate-500">Doc: {employeesMap.get(rec.employeeId)?.documentId || 'S/D'}</div>
+                        <div className="font-medium text-xs text-neutral-900 dark:text-white">{rec.employeeName}</div>
+                        <div className="caption-mono text-[10px] text-neutral-400">CC {employeesMap.get(rec.employeeId)?.documentId || 'S/D'}</div>
                       </td>
 
                       {/* Type */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded border text-[11px] font-semibold ${typeInfo.badgeBg} ${typeInfo.badgeText}`}>
+                        <span className={`px-2 py-0.5 rounded-[4px] border text-[10px] font-medium ${typeInfo.badgeBg} ${typeInfo.badgeText} border-transparent`}>
                           {typeInfo.label}
                         </span>
                       </td>
 
                       {/* Hours */}
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <td className="px-4 py-3 whitespace-nowrap text-center font-mono">
                         {isEditing ? (
                           <input
                             type="number"
@@ -300,15 +300,15 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                             min="0.5"
                             value={editHours}
                             onChange={(e) => setEditHours(parseFloat(e.target.value) || 0)}
-                            className="w-16 bg-white dark:bg-slate-800 border border-slate-400 rounded px-1.5 py-0.5 font-bold text-center text-xs"
+                            className="w-16 bg-white dark:bg-[#1a1a1a] border border-neutral-300 dark:border-neutral-700 rounded-[4px] px-1.5 py-0.5 font-mono text-center text-xs"
                           />
                         ) : (
-                          <span className="font-bold text-xs text-slate-900 dark:text-slate-100">{formatHoursDisplay(rec.hours)}</span>
+                          <span className="font-semibold text-xs text-neutral-900 dark:text-neutral-100">{formatHoursDisplay(rec.hours)}</span>
                         )}
                       </td>
 
                       {/* Surcharge Value */}
-                      <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-slate-800 dark:text-slate-200">
+                      <td className="px-4 py-3 whitespace-nowrap text-right font-mono font-medium text-xs text-neutral-800 dark:text-neutral-200">
                         {formatCurrency(cost, settings.currencySymbol)}
                       </td>
 
@@ -319,11 +319,11 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                             type="text"
                             value={editNotes}
                             onChange={(e) => setEditNotes(e.target.value)}
-                            className="w-full bg-white dark:bg-slate-800 border border-slate-400 rounded px-2 py-0.5 text-xs"
+                            className="w-full form-input text-xs h-7 px-2 rounded-[4px]"
                           />
                         ) : (
-                          <p className="text-slate-600 dark:text-slate-300 italic text-[11px] max-w-xs truncate" title={rec.notes}>
-                            {rec.notes || 'Sin observaciones'}
+                          <p className="text-neutral-500 dark:text-neutral-400 text-xs max-w-xs truncate" title={rec.notes}>
+                            {rec.notes || '—'}
                           </p>
                         )}
                       </td>
@@ -335,14 +335,14 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                             <>
                               <button
                                 onClick={() => saveInlineEdit(rec.id)}
-                                className="bg-slate-900 text-white hover:bg-slate-800 p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                                className="bg-[#171717] dark:bg-white text-white dark:text-[#171717] p-1.5 rounded-[6px] text-xs transition"
                                 title="Guardar Cambios"
                               >
                                 <Save className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => setEditingId(null)}
-                                className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 p-1.5 rounded-lg text-xs"
+                                className="bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 p-1.5 rounded-[6px] text-xs hover:bg-neutral-200 transition"
                                 title="Cancelar"
                               >
                                 <X className="w-3.5 h-3.5" />
@@ -352,7 +352,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                             <>
                               <button
                                 onClick={() => startInlineEdit(rec)}
-                                className="p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                                className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-[6px] transition"
                                 title="Editar horas o notas"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -360,10 +360,10 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
 
                               <button
                                 onClick={() => onToggleVerify(rec.id)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
+                                className={`px-2.5 py-1 rounded-[6px] text-xs font-medium flex items-center gap-1 transition ${
                                   rec.verifiedByManager
-                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                                    : 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
+                                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200'
+                                    : 'bg-[#171717] text-white hover:bg-neutral-800 dark:bg-white dark:text-[#171717] dark:hover:bg-neutral-100 shadow-vercel-subtle'
                                 }`}
                               >
                                 <UserCheck className="w-3.5 h-3.5" />
@@ -372,7 +372,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
 
                               <button
                                 onClick={() => onDeleteRecord(rec.id)}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition"
+                                className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-[6px] transition"
                                 title="Eliminar registro"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

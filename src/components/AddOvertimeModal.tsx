@@ -126,25 +126,24 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
 
   const directPresets = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full border border-slate-200/90 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Soft Minimalist Header */}
-        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800">
+  return (    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#111111] rounded-[12px] max-w-lg w-full border border-[#ebebeb] dark:border-[#262626] shadow-vercel-modal overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Vercel Polarity Flipped #171717 Header */}
+        <div className="bg-[#171717] text-white p-4 sm:p-5 flex items-center justify-between border-b border-[#262626]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-slate-300" />
+            <div className="w-8 h-8 rounded-[6px] bg-white/10 border border-white/10 flex items-center justify-center">
+              <Clock className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base text-white tracking-tight">Registrar Horas Extras</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="font-semibold text-sm sm:text-base text-white tracking-tight">Registrar Horas Extras</h3>
+              <p className="text-[11px] text-neutral-400 font-sans">
                 Calcula por hora de salida real o ingresa las horas directamente.
               </p>
             </div>
           </div>
 
-          <button onClick={onClose} className="text-slate-400 hover:text-white p-1 rounded-lg transition">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="text-neutral-400 hover:text-white p-1 rounded-[6px] transition">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -152,8 +151,8 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
         <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto flex-1">
           {/* Date Picker & Schedule Banner */}
           <div className="space-y-2">
-            <label className="block font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+            <label className="caption-mono block text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-neutral-400" />
               Fecha de Trabajo *
             </label>
             <input
@@ -161,15 +160,15 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="form-input w-full text-xs font-mono font-medium h-9 px-3 rounded-[6px]"
             />
 
             {/* Schedule Banner */}
             {date && (
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 rounded-xl flex items-start gap-2 text-slate-600 dark:text-slate-300">
-                <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                <div className="text-[11px] leading-relaxed">
-                  <span className="font-bold text-slate-900 dark:text-slate-100">{schedule.dayName}: </span>
+              <div className="p-2.5 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] flex items-start gap-2 text-neutral-600 dark:text-neutral-300">
+                <Info className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                <div className="text-[11px] leading-relaxed font-sans">
+                  <span className="font-semibold text-neutral-900 dark:text-neutral-100">{schedule.dayName}: </span>
                   <span>{schedule.notes}</span>
                 </div>
               </div>
@@ -178,17 +177,17 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
 
           {/* Mode Switcher Tabs */}
           <div className="space-y-2">
-            <label className="block font-bold text-slate-800 dark:text-slate-200">
+            <label className="caption-mono block text-neutral-700 dark:text-neutral-200">
               Método de Registro de Horas *
             </label>
-            <div className="grid grid-cols-2 gap-1.5 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700/60">
+            <div className="grid grid-cols-2 gap-1.5 bg-[#f5f5f5] dark:bg-[#1c1c1c] p-1 rounded-[8px] border border-[#ebebeb] dark:border-[#2c2c2c]">
               <button
                 type="button"
                 onClick={() => setInputMode('departure_time')}
-                className={`py-2 px-2 rounded-lg font-bold text-center text-xs transition flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2 rounded-[6px] font-medium text-center text-xs transition flex items-center justify-center gap-1.5 ${
                   inputMode === 'departure_time'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-white dark:bg-[#111111] text-[#171717] dark:text-white shadow-vercel-subtle'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
@@ -198,29 +197,29 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               <button
                 type="button"
                 onClick={() => setInputMode('direct_hours')}
-                className={`py-2 px-2 rounded-lg font-bold text-center text-xs transition flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2 rounded-[6px] font-medium text-center text-xs transition flex items-center justify-center gap-1.5 ${
                   inputMode === 'direct_hours'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-white dark:bg-[#111111] text-[#171717] dark:text-white shadow-vercel-subtle'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Cantidad Directa (ej. 1.5h)</span>
+                <span>Cantidad Directa</span>
               </button>
             </div>
           </div>
 
           {/* MODE A: DEPARTURE TIME CALCULATION */}
           {inputMode === 'departure_time' && (
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 rounded-2xl space-y-3">
+            <div className="p-3.5 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[10px] space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                  <span className="caption-mono text-neutral-700 dark:text-neutral-200 block text-xs">
                     Hora Real de Salida del Empleado
                   </span>
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-[11px] text-neutral-400 font-sans">
                     {schedule.isWeekend
-                      ? 'Día de fin de semana (se calcula según horario de ingreso y salida)'
+                      ? 'Fin de semana (según horario de ingreso y salida)'
                       : `Hora oficial de salida: ${schedule.shiftEnd}`}
                   </span>
                 </div>
@@ -231,33 +230,33 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                     required
                     value={departureTime}
                     onChange={(e) => setDepartureTime(e.target.value)}
-                    className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-1.5 font-bold text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+                    className="form-input text-xs font-mono font-medium h-9 px-3 rounded-[6px]"
                   />
                 </div>
               </div>
 
               {schedule.isWeekend && (
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Hora de Ingreso el Fin de Semana:
+                <div className="flex items-center justify-between pt-2 border-t border-[#ebebeb] dark:border-[#262626]">
+                  <span className="caption-mono text-xs text-neutral-600 dark:text-neutral-300">
+                    Hora de Ingreso Fin de Semana:
                   </span>
                   <input
                     type="time"
                     value={weekendStartTime}
                     onChange={(e) => setWeekendStartTime(e.target.value)}
-                    className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl px-2.5 py-1 text-xs font-semibold text-slate-900 dark:text-white"
+                    className="form-input text-xs font-mono font-medium h-8 px-2.5 rounded-[6px]"
                   />
                 </div>
               )}
 
               {/* Automatic Calculation Box */}
-              <div className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
+              <div className="p-2.5 bg-white dark:bg-[#0d0d0d] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-500 font-medium">Resultado Extra:</span>
-                  <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">{calculationBreakdown}</span>
+                  <span className="caption-mono text-[10px] text-neutral-400">Resultado:</span>
+                  <span className="text-xs text-neutral-700 dark:text-neutral-300 font-medium font-sans">{calculationBreakdown}</span>
                 </div>
 
-                <div className="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold px-2.5 py-1 rounded-lg text-xs shrink-0 shadow-sm">
+                <div className="bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-mono font-semibold px-2.5 py-1 rounded-[6px] text-xs shrink-0 shadow-vercel-subtle">
                   = {formatHoursDisplay(effectiveHours)}
                 </div>
               </div>
@@ -266,12 +265,12 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
 
           {/* MODE B: DIRECT HOURS INPUT */}
           {inputMode === 'direct_hours' && (
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 rounded-2xl space-y-3">
+            <div className="p-3.5 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[10px] space-y-3">
               <div className="flex items-center justify-between">
-                <label className="font-bold text-slate-800 dark:text-slate-200">
+                <label className="caption-mono text-neutral-700 dark:text-neutral-200">
                   Horas Extras Laboradas
                 </label>
-                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                <span className="font-mono font-semibold text-xs text-neutral-900 dark:text-neutral-100 bg-white dark:bg-[#0d0d0d] px-2.5 py-1 rounded-[6px] border border-[#ebebeb] dark:border-[#262626] shadow-vercel-subtle">
                   {formatHoursDisplay(hours)}
                 </span>
               </div>
@@ -285,7 +284,7 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                   required={inputMode === 'direct_hours'}
                   value={hours}
                   onChange={(e) => setHours(parseFloat(e.target.value) || 0.5)}
-                  className="w-24 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 font-bold text-center text-xs focus:outline-none"
+                  className="form-input w-24 text-center font-mono font-medium text-xs h-9 rounded-[6px]"
                 />
 
                 <div className="flex flex-wrap items-center gap-1">
@@ -294,10 +293,10 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                       key={num}
                       type="button"
                       onClick={() => setHours(num)}
-                      className={`px-2 py-1 rounded-lg font-bold text-[11px] border transition ${
+                      className={`px-2 py-1 rounded-[6px] font-mono text-[11px] border transition ${
                         hours === num
-                          ? 'bg-slate-900 text-white border-slate-900'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                          ? 'bg-[#171717] text-white border-[#171717] dark:bg-white dark:text-[#171717] dark:border-white'
+                          : 'bg-white dark:bg-[#111111] border-[#ebebeb] dark:border-[#262626] text-neutral-700 dark:text-neutral-300 hover:bg-[#fafafa]'
                       }`}
                     >
                       +{num}h
@@ -311,42 +310,42 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
           {/* Employee Multi Selector */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-slate-500" />
+              <label className="caption-mono text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-neutral-400" />
                 Empleados ({selectedEmployeeIds.length} seleccionados) *
               </label>
 
               <button
                 type="button"
                 onClick={handleSelectAllEmployees}
-                className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-900 font-semibold underline"
+                className="caption-mono text-[11px] text-neutral-400 hover:text-neutral-900 dark:hover:text-white underline transition"
               >
                 {selectedEmployeeIds.length === employees.length ? 'Desmarcar todos' : 'Seleccionar todos'}
               </button>
             </div>
 
-            <div className="max-h-36 overflow-y-auto border border-slate-200/80 dark:border-slate-800 rounded-xl p-1.5 bg-slate-50/50 dark:bg-slate-800/30 space-y-1">
+            <div className="max-h-36 overflow-y-auto border border-[#ebebeb] dark:border-[#262626] rounded-[8px] p-1.5 bg-[#fafafa] dark:bg-[#161616] space-y-1">
               {employees.map((emp) => {
                 const isSelected = selectedEmployeeIds.includes(emp.id);
                 return (
                   <div
                     key={emp.id}
                     onClick={() => toggleEmployeeSelect(emp.id)}
-                    className={`p-2 rounded-lg cursor-pointer flex items-center justify-between transition ${
+                    className={`p-2 rounded-[6px] cursor-pointer flex items-center justify-between transition ${
                       isSelected
-                        ? 'bg-slate-900 text-white font-medium'
-                        : 'hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                        ? 'bg-[#171717] text-white'
+                        : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200'
                     }`}
                   >
                     <div>
-                      <span className="font-semibold text-xs">{emp.name}</span>
-                      <span className={`block text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                        {emp.position} (Doc: {emp.documentId})
+                      <span className="font-medium text-xs">{emp.name}</span>
+                      <span className={`caption-mono block text-[10px] ${isSelected ? 'text-neutral-300' : 'text-neutral-400'}`}>
+                        {emp.position} (CC {emp.documentId})
                       </span>
                     </div>
 
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'border-white bg-white/20' : 'border-slate-300 dark:border-slate-600'}`}>
-                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                    <div className={`w-4 h-4 rounded-[4px] border flex items-center justify-center ${isSelected ? 'border-white bg-white/20' : 'border-neutral-300 dark:border-neutral-600'}`}>
+                      {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
                     </div>
                   </div>
                 );
@@ -356,7 +355,7 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
 
           {/* Type of Overtime */}
           <div>
-            <label className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+            <label className="caption-mono block text-neutral-700 dark:text-neutral-200 mb-1.5">
               Tipo de Hora Extra / Recargo *
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -367,14 +366,14 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                   <div
                     key={tKey}
                     onClick={() => setOvertimeType(tKey)}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition ${
+                    className={`p-2.5 rounded-[8px] border cursor-pointer transition ${
                       isSelected
-                        ? 'border-slate-900 dark:border-slate-100 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                        ? 'border-[#171717] dark:border-white bg-[#171717] text-white dark:bg-white dark:text-[#171717]'
+                        : 'border-[#ebebeb] dark:border-[#262626] bg-[#fafafa] dark:bg-[#161616] text-neutral-700 dark:text-neutral-300 hover:border-neutral-300'
                     }`}
                   >
-                    <div className="font-bold text-xs">{typeObj.label}</div>
-                    <div className={`text-[10px] mt-0.5 ${isSelected ? 'opacity-80' : 'text-slate-400'}`}>
+                    <div className="font-semibold text-xs">{typeObj.label}</div>
+                    <div className={`text-[10px] mt-0.5 font-sans ${isSelected ? 'opacity-80' : 'text-neutral-400'}`}>
                       {typeObj.description}
                     </div>
                   </div>
@@ -385,8 +384,8 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
 
           {/* Notes */}
           <div>
-            <label className="block font-bold text-slate-800 dark:text-slate-200 mb-1 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-slate-500" />
+            <label className="caption-mono block text-neutral-700 dark:text-neutral-200 mb-1 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-neutral-400" />
               Observaciones / Motivo
             </label>
             <input
@@ -394,37 +393,37 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               placeholder="Ej. Despacho urgente, reparación de máquina, cierre de mes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none"
+              className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
             />
           </div>
 
           {/* Manager Verification Checkbox */}
-          <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-xl flex items-center gap-2.5">
+          <div className="p-3 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] flex items-center gap-2.5">
             <input
               type="checkbox"
               id="verifyNow"
               checked={verifiedByManager}
               onChange={(e) => setVerifiedByManager(e.target.checked)}
-              className="w-4 h-4 text-slate-900 rounded focus:ring-slate-500 cursor-pointer"
+              className="w-4 h-4 accent-[#171717] rounded cursor-pointer"
             />
-            <label htmlFor="verifyNow" className="text-xs text-slate-800 dark:text-slate-200 font-medium cursor-pointer">
+            <label htmlFor="verifyNow" className="text-xs text-neutral-800 dark:text-neutral-200 font-medium cursor-pointer font-sans">
               Marcar como revisado y verificado por el encargado inmediatamente
             </label>
           </div>
 
           {/* Submit */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="button-secondary px-4 py-2 rounded-full text-xs font-medium"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={selectedEmployeeIds.length === 0 || effectiveHours <= 0}
-              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white font-bold rounded-xl transition shadow-sm"
+              className="button-primary px-5 py-2 rounded-full text-xs font-medium"
             >
               Guardar ({selectedEmployeeIds.length}) Registros ({formatHoursDisplay(effectiveHours)})
             </button>

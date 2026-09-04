@@ -9,59 +9,52 @@ export const PintechLogo: React.FC<PintechLogoProps> = ({
   size = 'md',
   showSubtitle = true,
 }) => {
-  const iconSizes = {
-    sm: 'w-7 h-7',
-    md: 'w-9 h-9',
-    lg: 'w-12 h-12',
+  const iconDimensions = {
+    sm: 'w-6 h-6',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10',
   };
 
-  const textSizes = {
-    sm: 'text-sm',
-    md: 'text-base',
-    lg: 'text-2xl',
+  const textStyles = {
+    sm: 'text-sm tracking-[-0.6px]',
+    md: 'text-base tracking-[-0.96px]',
+    lg: 'text-xl tracking-[-1.28px]',
   };
 
   return (
-    <div className="flex items-center gap-3 select-none">
-      {/* Pintech Geometric Logo Mark */}
+    <div className="flex items-center gap-2.5 select-none">
+      {/* Vercel-style stark geometric mark */}
       <div
-        className={`${iconSizes[size]} rounded-xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700/80 shadow-inner flex items-center justify-center relative overflow-hidden shrink-0`}
+        className={`${iconDimensions[size]} rounded-[6px] bg-[#171717] dark:bg-white text-white dark:text-[#171717] flex items-center justify-center relative overflow-hidden shrink-0 shadow-sm`}
       >
-        <svg viewBox="0 0 40 40" fill="none" className="w-6 h-6">
-          {/* P stem & loop */}
+        <svg viewBox="0 0 32 32" fill="none" className="w-4 h-4">
+          {/* Stark Geometric P Form */}
           <path
-            d="M12 10H23C27.4183 10 31 13.5817 31 18C31 22.4183 27.4183 26 23 26H18V32H12V10Z"
-            fill="url(#logo-grad)"
+            d="M8 6H19C23.4183 6 27 9.58172 27 14C27 18.4183 23.4183 22 19 22H14V26H8V6Z"
+            fill="currentColor"
           />
           <path
-            d="M18 15H22.5C24.433 15 26 16.567 26 18.5C26 20.433 24.433 22 22.5 22H18V15Z"
-            fill="#0f172a"
+            d="M14 11H18.5C20.1569 11 21.5 12.3431 21.5 14C21.5 15.6569 20.1569 17 18.5 17H14V11Z"
+            fill="var(--canvas, #ffffff)"
+            className="dark:fill-[#171717]"
           />
-          {/* Tech Accent Dot */}
-          <circle cx="28" cy="29" r="2.5" fill="#38bdf8" />
-          <defs>
-            <linearGradient id="logo-grad" x1="12" y1="10" x2="31" y2="32" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#38bdf8" />
-              <stop offset="1" stop-color="#2563eb" />
-            </linearGradient>
-          </defs>
         </svg>
       </div>
 
-      {/* Brand Typography */}
-      <div>
-        <div className="flex items-center gap-1.5">
-          <span className={`${textSizes[size]} font-extrabold tracking-tight text-white`}>
+      {/* Brand Typography in Geist */}
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2">
+          <span className={`${textStyles[size]} font-semibold text-[#171717] dark:text-white leading-tight`}>
             PINTECH
           </span>
-          <span className="text-[10px] bg-sky-500/20 text-sky-300 px-1.5 py-0.5 rounded font-bold border border-sky-500/30">
-            NÓMINA
+          <span className="font-mono-tech text-[10px] font-medium tracking-wide uppercase px-1.5 py-0.5 rounded-[4px] bg-[#f5f5f5] dark:bg-[#1a1a1a] text-[#666666] dark:text-[#888888] border border-[#ebebeb] dark:border-[#262626]">
+            Nómina
           </span>
         </div>
         {showSubtitle && (
-          <p className="text-[11px] text-slate-400 font-medium tracking-wide">
+          <span className="font-mono-tech text-[11px] text-[#888888] dark:text-[#666666] leading-none mt-0.5">
             Pintech Colombia S.A.S.
-          </p>
+          </span>
         )}
       </div>
     </div>

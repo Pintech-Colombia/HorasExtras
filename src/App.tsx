@@ -281,10 +281,13 @@ export default function App() {
   // Pantalla de Carga de Autenticación
   if (isAuthChecking) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-        <PintechLogo size="lg" showSubtitle={false} />
-        <div className="mt-6 flex items-center gap-2 text-slate-400 text-xs animate-pulse">
-          <span>Verificando credenciales de seguridad...</span>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute w-96 h-96 bg-vercel-mesh opacity-15 blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col items-center">
+          <PintechLogo size="lg" showSubtitle={false} />
+          <div className="mt-8 flex items-center gap-2 caption-mono text-neutral-400 text-xs animate-pulse">
+            <span>Sincronizando credenciales de seguridad...</span>
+          </div>
         </div>
       </div>
     );
@@ -301,7 +304,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-sky-500 selection:text-white pb-16">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] text-[#171717] dark:text-neutral-100 font-sans antialiased selection:bg-[#171717] selection:text-white dark:selection:bg-white dark:selection:text-[#171717] pb-16">
       {/* Navbar con marca Pintech, selector de quincena y estado de sesión */}
       <Navbar
         currentTab={currentTab}
@@ -326,7 +329,7 @@ export default function App() {
       {/* Main View Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {isLoading && (
-          <div className="mb-4 flex items-center justify-center p-3 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900 rounded-xl text-xs text-sky-800 dark:text-sky-300 animate-pulse">
+          <div className="mb-4 flex items-center justify-center p-3 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] caption-mono text-xs text-neutral-500 dark:text-neutral-400 shadow-vercel-subtle animate-pulse">
             Sincronizando registros con Supabase...
           </div>
         )}

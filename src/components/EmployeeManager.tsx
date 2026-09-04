@@ -176,13 +176,18 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#111111] rounded-[12px] p-6 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-card flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-sky-500" />
-            Gestión de Personal y Operarios Pintech
+          <div className="flex items-center gap-2">
+            <span className="caption-mono bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-[11px] px-2.5 py-0.5 rounded-[6px] border border-neutral-200 dark:border-neutral-700 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-300" />
+              Gestión de Personal
+            </span>
+          </div>
+          <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white mt-2 tracking-display-md">
+            Personal y Operarios Pintech
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 font-sans">
             Administra los empleados por área (Inyección, Ensamble, Calidad, etc.), documentos y tarifas horarias.
           </p>
         </div>
@@ -200,27 +205,27 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
 
           <button
             onClick={handleDownloadTemplate}
-            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition border border-slate-200 dark:border-slate-700"
+            className="button-secondary text-xs font-medium px-3.5 py-2 rounded-[6px] flex items-center gap-1.5"
             title="Descargar archivo Excel / CSV de ejemplo"
           >
-            <Download className="w-4 h-4 text-slate-500" />
+            <Download className="w-3.5 h-3.5 text-neutral-500" />
             <span>Plantilla CSV</span>
           </button>
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition border border-slate-200 dark:border-slate-700"
+            className="button-secondary text-xs font-medium px-3.5 py-2 rounded-[6px] flex items-center gap-1.5"
             title="Importar lista de personal masivamente"
           >
-            <Upload className="w-4 h-4 text-sky-500" />
+            <Upload className="w-3.5 h-3.5 text-neutral-700 dark:text-neutral-300" />
             <span>Importar CSV</span>
           </button>
 
           <button
             onClick={openAddModal}
-            className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition shadow-sm cursor-pointer"
+            className="button-primary text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2"
           >
-            <UserPlus className="w-4 h-4 text-white" />
+            <UserPlus className="w-3.5 h-3.5" />
             <span>Nuevo Empleado</span>
           </button>
         </div>
@@ -228,27 +233,27 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
 
       {/* Import Status Alert */}
       {importStatus && (
-        <div className="p-4 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-2xl text-xs text-sky-800 dark:text-sky-300 flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-sky-500 shrink-0" />
+        <div className="p-3.5 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-[10px] text-xs text-neutral-800 dark:text-neutral-200 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
           <span>{importStatus}</span>
         </div>
       )}
 
       {/* Search Bar */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-white dark:bg-[#111111] p-3 rounded-[12px] border border-[#ebebeb] dark:border-[#262626] shadow-vercel-subtle flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-neutral-400" />
           <input
             type="text"
             placeholder="Buscar por nombre, cédula, cargo o área..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-800 text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-400"
+            className="form-input w-full text-xs pl-9 pr-3 h-9 rounded-[6px]"
           />
         </div>
 
-        <div className="text-xs text-slate-500 font-medium">
-          Total: <strong className="text-slate-900 dark:text-white">{employees.length}</strong> empleados ({employees.filter(e => e.active).length} activos)
+        <div className="caption-mono text-xs text-neutral-500 dark:text-neutral-400">
+          Total: <strong className="font-mono text-neutral-900 dark:text-white font-semibold">{employees.length}</strong> empleados ({employees.filter(e => e.active).length} activos)
         </div>
       </div>
 
@@ -257,25 +262,25 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
         {filteredEmployees.map((emp) => (
           <div
             key={emp.id}
-            className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition"
+            className="bg-white dark:bg-[#111111] rounded-[12px] p-5 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-card flex flex-col justify-between space-y-4 hover:border-neutral-300 dark:hover:border-neutral-700 transition-all"
           >
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-sm">{emp.name}</h3>
-                  <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
-                    <FileText className="w-3 h-3 text-slate-400" />
-                    Cédula: {emp.documentId || 'Sin registrar'}
+                  <h3 className="font-semibold text-neutral-900 dark:text-white text-sm tracking-tight">{emp.name}</h3>
+                  <span className="caption-mono text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
+                    <FileText className="w-3 h-3 text-neutral-400" />
+                    CC {emp.documentId || 'Sin registrar'}
                   </span>
                 </div>
 
                 {/* Active / Inactive Badge with Toggle click */}
                 <button
                   onClick={() => onUpdateEmployee(emp.id, { active: !emp.active })}
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold border transition cursor-pointer ${
+                  className={`caption-mono text-[10px] px-2.5 py-0.5 rounded-full border transition cursor-pointer ${
                     emp.active
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                      : 'bg-slate-100 text-slate-500 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                      : 'bg-neutral-100 text-neutral-500 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700'
                   }`}
                   title="Clic para cambiar estado"
                 >
@@ -283,35 +288,35 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                 </button>
               </div>
 
-              <div className="text-xs space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                  <span className="flex items-center gap-1 text-slate-400">
+              <div className="text-xs space-y-1.5 pt-2 border-t border-[#ebebeb] dark:border-[#262626] font-sans">
+                <div className="flex items-center justify-between text-neutral-600 dark:text-neutral-300">
+                  <span className="flex items-center gap-1 text-neutral-400 text-xs">
                     <Building className="w-3 h-3" />
                     Área / Cargo:
                   </span>
-                  <span className="font-medium text-slate-900 dark:text-slate-200">
-                    {emp.position} <span className="text-sky-500 font-semibold">({emp.department})</span>
+                  <span className="font-medium text-neutral-900 dark:text-neutral-200 text-xs">
+                    {emp.position} <span className="caption-mono text-neutral-400 font-normal">({emp.department})</span>
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                  <span className="flex items-center gap-1 text-slate-400">
-                    <DollarSign className="w-3 h-3 text-slate-500" />
-                    Valor Hora Ordinaria:
+                <div className="flex items-center justify-between text-neutral-600 dark:text-neutral-300">
+                  <span className="flex items-center gap-1 text-neutral-400 text-xs">
+                    <DollarSign className="w-3 h-3 text-neutral-400" />
+                    Tarifa Hora Base:
                   </span>
-                  <span className="font-bold text-slate-900 dark:text-slate-100">
+                  <span className="font-mono font-semibold text-neutral-900 dark:text-white text-xs">
                     {formatCurrency(emp.baseHourlyRate)} / h
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
               <button
                 onClick={() => openEditModal(emp)}
-                className="text-xs text-slate-700 dark:text-slate-200 font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center gap-1 transition hover:bg-slate-200 dark:hover:bg-slate-700"
+                className="text-xs text-neutral-700 dark:text-neutral-300 font-medium px-2.5 py-1 rounded-[6px] bg-neutral-100 dark:bg-neutral-800 flex items-center gap-1 transition hover:bg-neutral-200 dark:hover:bg-neutral-700"
               >
-                <Edit className="w-3.5 h-3.5" />
+                <Edit className="w-3 h-3" />
                 <span>Editar</span>
               </button>
 
@@ -321,9 +326,9 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                     onDeleteEmployee(emp.id);
                   }
                 }}
-                className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 font-semibold px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center gap-1 transition"
+                className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 font-medium px-2.5 py-1 rounded-[6px] bg-red-50 dark:bg-red-950/30 flex items-center gap-1 transition"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3 h-3" />
                 <span>Eliminar</span>
               </button>
             </div>
@@ -333,20 +338,20 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
 
       {/* Add / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-150">
-            <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
-              <h3 className="font-bold text-sm">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#111111] rounded-[12px] max-w-md w-full border border-[#ebebeb] dark:border-[#262626] shadow-vercel-modal overflow-hidden animate-in fade-in duration-150">
+            <div className="bg-[#171717] text-white p-4 flex items-center justify-between border-b border-[#262626]">
+              <h3 className="font-semibold text-sm">
                 {editingEmployee ? 'Editar Empleado Pintech' : 'Nuevo Empleado Pintech'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setIsModalOpen(false)} className="text-neutral-400 hover:text-white cursor-pointer text-xs">
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                   Nombre Completo *
                 </label>
                 <input
@@ -355,12 +360,12 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                   placeholder="Ej. Carlos Alberto Mendoza"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                   Número de Cédula / Documento *
                 </label>
                 <input
@@ -369,13 +374,13 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                   placeholder="Ej. 1020304050"
                   value={documentId}
                   onChange={(e) => setDocumentId(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                     Cargo *
                   </label>
                   <input
@@ -384,18 +389,18 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                     placeholder="Ej. Técnico Inyección"
                     value={position}
                     onChange={(e) => setPosition(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-sky-400"
+                    className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                     Área / Depto *
                   </label>
                   <select
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-sky-400"
+                    className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
                   >
                     {PINTECH_DEPARTMENTS.map((dept) => (
                       <option key={dept} value={dept}>
@@ -407,7 +412,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                   Valor Hora Base Ordinaria ($)
                 </label>
                 <input
@@ -416,21 +421,21 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                   min="0"
                   value={baseHourlyRate}
                   onChange={(e) => setBaseHourlyRate(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="button-secondary px-4 py-2 rounded-full text-xs font-medium"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-sm transition cursor-pointer"
+                  className="button-primary px-4 py-2 rounded-full text-xs font-medium"
                 >
                   Guardar Empleado
                 </button>
