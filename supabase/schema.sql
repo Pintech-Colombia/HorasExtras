@@ -103,10 +103,15 @@ returns trigger as $$
 declare
   default_company_id uuid;
 begin
-  -- Crear una empresa inicial por defecto para el usuario
-  insert into public.companies (name, nit, manager_name, manager_title, accountant_name, accountant_email)
-  values ('Pintech Colombia S.A.S.', '901.123.507-9', 'Lorena Vargas', 'Jefa de Producción', 'Omar (Contador)', 'contabilidad@pintech.co')
-  returning id into default_company_id;
+  -- Buscar si ya existe una empresa registrada (para asociar a todos a Pintech)
+  select id into default_company_id from public.companies order by created_at asc limit 1;
+
+  -- Si no existe ninguna empresa aún, crear la primera por defecto
+  if default_company_id is null then
+    insert into public.companies (name, nit, manager_name, manager_title, accountant_name, accountant_email)
+    values ('Pintech Colombia S.A.S.', '901.123.507-9', 'Lorena Vargas', 'Jefa de Producción', 'Omar (Contador)', 'contabilidad@pintech.co')
+    returning id into default_company_id;
+  end if;
 
   insert into public.profiles (id, company_id, full_name, email, role)
   values (

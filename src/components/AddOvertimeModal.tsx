@@ -45,16 +45,20 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
     }
   }, [initialDate, isOpen]);
 
-  // Default departure time suggestion depending on weekday
+  // Default departure time and overtime type suggestion depending on weekday/weekend
   useEffect(() => {
     if (!date) return;
     const schedule = getWorkScheduleForDate(date);
     if (schedule.isWeekend) {
       setDepartureTime('13:30');
-    } else if (schedule.dayName === 'Miércoles') {
-      setDepartureTime('18:00'); // 6:00 PM on Wednesday -> 1.5h extra from 4:30 PM
+      setOvertimeType('festiva_diurna');
     } else {
-      setDepartureTime('18:30'); // 6:30 PM on Mon/Tue/Thu/Fri -> 1.5h extra from 5:00 PM
+      if (schedule.dayName === 'Miércoles') {
+        setDepartureTime('18:00'); // 6:00 PM on Wednesday -> 1.5h extra from 4:30 PM
+      } else {
+        setDepartureTime('18:30'); // 6:30 PM on Mon/Tue/Thu/Fri -> 1.5h extra from 5:00 PM
+      }
+      setOvertimeType('diurna');
     }
   }, [date]);
 
