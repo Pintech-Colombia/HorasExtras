@@ -1,23 +1,27 @@
 import React, { useState } from 'react';
-import { Building2, Mail, ShieldCheck, Save, RefreshCw, CheckCircle } from 'lucide-react';
-import { CompanySettings } from '../types';
+import { Building2, Mail, ShieldCheck, Save, RefreshCw, CheckCircle, Lock } from 'lucide-react';
+import { CompanySettings, UserRole } from '../types';
 
 interface CompanySettingsViewProps {
   settings: CompanySettings;
+  userRole?: UserRole | null;
   onSaveSettings: (s: CompanySettings) => void;
   onResetDefaults: () => void;
 }
 
 export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
   settings,
+  userRole,
   onSaveSettings,
   onResetDefaults,
 }) => {
+  const canEditSettings = userRole === 'accountant' || userRole === 'admin';
   const [formData, setFormData] = useState<CompanySettings>({ ...settings });
   const [savedStatus, setSavedStatus] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditSettings) return;
     onSaveSettings(formData);
     setSavedStatus(true);
     setTimeout(() => setSavedStatus(false), 3000);
@@ -42,6 +46,16 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Read-only Alert for Non-Admin */}
+      {!canEditSettings && (
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-[10px] text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2.5">
+          <Lock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>
+            <strong>Modo Solo Lectura:</strong> La modificación de datos fiscales, NIT y correos de contabilidad está reservada para el Contador o Administrador.
+          </span>
+        </div>
+      )}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white dark:bg-[#111111] rounded-[12px] border border-[#ebebeb] dark:border-[#262626] p-6 shadow-vercel-card space-y-6">
@@ -141,31 +155,39 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
 
         {/* Buttons */}
         <div className="flex items-center justify-between pt-4 border-t border-[#ebebeb] dark:border-[#262626]">
-          <button
-            type="button"
-            onClick={onResetDefaults}
-            className="text-xs text-neutral-400 hover:text-red-500 font-medium flex items-center gap-1.5 transition font-sans"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Restablecer Valores Predeterminados</span>
-          </button>
+          {canEditSettings ? (
+            <>
+              <button
+                type="button"
+                onClick={onResetDefaults}
+                className="text-xs text-neutral-400 hover:text-red-500 font-medium flex items-center gap-1.5 transition font-sans"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Restablecer Valores Predeterminados</span>
+              </button>
 
-          <button
-            type="submit"
-            className="button-primary px-5 py-2 rounded-full text-xs font-medium flex items-center gap-2"
-          >
-            {savedStatus ? (
-              <>
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                <span>¡Guardado Correctamente!</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                <span>Guardar Configuración</span>
-              </>
-            )}
-          </button>
+              <button
+                type="submit"
+                className="button-primary px-5 py-2 rounded-full text-xs font-medium flex items-center gap-2"
+              >
+                {savedStatus ? (
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>¡Guardado Correctamente!</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Guardar Configuración</span>
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <div className="text-xs text-neutral-400 italic font-mono-tech">
+              [Edición bloqueada para tu rol actual]
+            </div>
+          )}
         </div>
       </form>
     </div>

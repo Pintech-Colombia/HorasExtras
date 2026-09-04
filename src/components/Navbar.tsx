@@ -18,6 +18,7 @@ interface NavbarProps {
   userEmail?: string | null;
   userName?: string | null;
   userRole?: UserRole | null;
+  onRoleSwitch?: (role: UserRole) => void;
   periodType?: PeriodType;
   onPeriodChange?: (p: PeriodType) => void;
   onOpenAuth: () => void;
@@ -38,19 +39,27 @@ export const Navbar: React.FC<NavbarProps> = ({
   userEmail,
   userName,
   userRole,
+  onRoleSwitch,
   periodType = 'full_month',
   onPeriodChange,
   onOpenAuth,
   onSignOut,
 }) => {
   const isCloudActive = isSupabaseConfigured();
+  const effectiveRole: UserRole = userRole || 'supervisor';
 
   const roleLabelMap: Record<UserRole, string> = {
-    supervisor: 'Supervisor',
-    manager: 'Jefe Planta',
-    accountant: 'Contabilidad',
-    admin: 'Admin',
+    supervisor: 'Supervisor Planta',
+    manager: 'Jefa de Planta',
+    accountant: 'Contador / Nómina',
+    admin: 'Administrador',
   };
+
+  // Permisos de pestañas según rol
+  const canSeeReview = effectiveRole === 'manager' || effectiveRole === 'accountant' || effectiveRole === 'admin';
+  const canSeeGmail = effectiveRole === 'manager' || effectiveRole === 'accountant' || effectiveRole === 'admin';
+  const canSeeEmployees = effectiveRole === 'manager' || effectiveRole === 'accountant' || effectiveRole === 'admin';
+  const canSeeSettings = effectiveRole === 'accountant' || effectiveRole === 'admin';
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-[#ebebeb] dark:border-[#262626] transition-colors">
@@ -102,14 +111,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               />
             </div>
 
-            {/* Verification Stats Badge (Pill) */}
-            <div className="hidden lg:flex items-center gap-1.5 font-mono-tech text-[11px] text-[#666666] dark:text-[#888888] bg-[#fafafa] dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] px-2.5 h-8">
-              <span className="text-[#f5a623] font-semibold">{pendingCount}</span>
-              <span>pendientes</span>
-              <span className="text-[#ebebeb] dark:text-[#333333]">/</span>
-              <span className="text-[#171717] dark:text-white font-semibold">{verifiedCount}</span>
-              <span>auditadas</span>
-            </div>
+            {/* Verification Stats Badge (Pill) - Solo visible para Jefa y Contador */}
+            {canSeeReview && (
+              <div className="hidden lg:flex items-center gap-1.5 font-mono-tech text-[11px] text-[#666666] dark:text-[#888888] bg-[#fafafa] dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] px-2.5 h-8">
+                <span className="text-[#f5a623] font-semibold">{pendingCount}</span>
+                <span>pendientes</span>
+                <span className="text-[#ebebeb] dark:text-[#333333]">/</span>
+                <span className="text-[#171717] dark:text-white font-semibold">{verifiedCount}</span>
+                <span>auditadas</span>
+              </div>
+            )}
+
+            {/* Selector de Vista de Rol (Para Presentaciones a Jefes) */}
+            {onRoleSwitch && (
+              <div className="flex items-center bg-[#fafafa] dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] px-2 h-8 text-xs font-mono-tech">
+                <span className="text-[#888888] mr-1 text-[11px] hidden sm:inline">Vista:</span>
+                <select
+                  value={effectiveRole}
+                  onChange={(e) => onRoleSwitch(e.target.value as UserRole)}
+                  className="bg-transparent text-[#171717] dark:text-[#ededed] font-semibold border-none focus:outline-none cursor-pointer text-xs"
+                  title="Cambiar vista de rol para demostración"
+                >
+                  <option value="supervisor" className="bg-white dark:bg-[#111111]">1. Supervisor (Planta)</option>
+                  <option value="manager" className="bg-white dark:bg-[#111111]">2. Jefa (Operaciones)</option>
+                  <option value="accountant" className="bg-white dark:bg-[#111111]">3. Contador (Nómina)</option>
+                  <option value="admin" className="bg-white dark:bg-[#111111]">Admin (Total)</option>
+                </select>
+              </div>
+            )}
 
             {/* Dark / Light Mode Toggle Button (6px radius) */}
             <button
@@ -123,12 +152,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* User Session or Login Button */}
             {userEmail ? (
               <div className="flex items-center gap-2 h-8 px-2.5 rounded-[6px] border border-[#ebebeb] dark:border-[#262626] bg-[#fafafa] dark:bg-[#111111] text-xs">
-                {userRole && (
-                  <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#888888]">
-                    {roleLabelMap[userRole]}
-                  </span>
-                )}
-                <span className="font-medium text-[#171717] dark:text-white max-w-[110px] truncate">
+                <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#888888]">
+                  {roleLabelMap[effectiveRole]}
+                </span>
+                <span className="font-medium text-[#171717] dark:text-white max-w-[110px] truncate hidden md:inline">
                   {userName || userEmail}
                 </span>
                 <button
@@ -161,8 +188,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Vercel Navigation Bar (Sub-row tabs with subtle underlines) */}
+        {/* Vercel Navigation Bar (Filtrada por Rol) */}
         <nav className="flex items-center gap-1 overflow-x-auto scrollbar-none text-xs border-t border-[#ebebeb] dark:border-[#262626] py-1.5">
+          {/* 1. Calendario: Visible para todos (Supervisor, Jefa, Contador) */}
           <button
             onClick={() => setCurrentTab('calendar')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
@@ -175,58 +203,70 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>1. Calendario</span>
           </button>
 
-          <button
-            onClick={() => setCurrentTab('review')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
-              currentTab === 'review'
-                ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-semibold'
-                : 'text-[#666666] dark:text-[#888888] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#171717]'
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>2. Auditoría Encargado</span>
-            {pendingCount > 0 && (
-              <span className="font-mono-tech ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#f5a623] text-black">
-                {pendingCount}
-              </span>
-            )}
-          </button>
+          {/* 2. Auditoría Encargado: Visible solo para Jefa y Contador */}
+          {canSeeReview && (
+            <button
+              onClick={() => setCurrentTab('review')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
+                currentTab === 'review'
+                  ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-semibold'
+                  : 'text-[#666666] dark:text-[#888888] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#171717]'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{effectiveRole === 'manager' ? '2. Auditoría Jefa' : '2. Auditoría y Control'}</span>
+              {pendingCount > 0 && (
+                <span className="font-mono-tech ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#f5a623] text-black">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          )}
 
-          <button
-            onClick={() => setCurrentTab('gmail')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
-              currentTab === 'gmail'
-                ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-semibold'
-                : 'text-[#666666] dark:text-[#888888] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#171717]'
-            }`}
-          >
-            <Mail className="w-3.5 h-3.5" />
-            <span>3. Formato Gmail & Contabilidad</span>
-          </button>
+          {/* 3. Formato Gmail & Nómina: Visible solo para Jefa y Contador */}
+          {canSeeGmail && (
+            <button
+              onClick={() => setCurrentTab('gmail')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
+                currentTab === 'gmail'
+                  ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-semibold'
+                  : 'text-[#666666] dark:text-[#888888] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#171717]'
+              }`}
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>{effectiveRole === 'manager' ? '3. Enviar a Contabilidad' : '3. Formato Gmail & Nómina'}</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setCurrentTab('employees')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
-              currentTab === 'employees'
-                ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-semibold'
-                : 'text-[#666666] dark:text-[#888888] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#171717]'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Personal & Tarifas</span>
-          </button>
+          {/* 4. Personal & Tarifas: Visible solo para Jefa y Contador */}
+          {canSeeEmployees && (
+            <button
+              onClick={() => setCurrentTab('employees')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
+                currentTab === 'employees'
+                  ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-semibold'
+                  : 'text-[#666666] dark:text-[#888888] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#171717]'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>{effectiveRole === 'manager' ? 'Personal de Planta' : 'Personal & Tarifas'}</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setCurrentTab('settings')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
-              currentTab === 'settings'
-                ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-semibold'
-                : 'text-[#666666] dark:text-[#888888] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#171717]'
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>Configuración</span>
-          </button>
+          {/* 5. Configuración: Visible solo para Contador y Administrador */}
+          {canSeeSettings && (
+            <button
+              onClick={() => setCurrentTab('settings')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] font-medium whitespace-nowrap transition-colors ${
+                currentTab === 'settings'
+                  ? 'bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-semibold'
+                  : 'text-[#666666] dark:text-[#888888] hover:text-[#171717] dark:hover:text-white hover:bg-[#f5f5f5] dark:hover:bg-[#171717]'
+              }`}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>Configuración</span>
+            </button>
+          )}
         </nav>
       </div>
     </header>

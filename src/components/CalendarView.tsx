@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, CheckCircle2, Clock, AlertCircle, Filter, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Info } from 'lucide-react';
-import { OvertimeRecord, Employee, OVERTIME_TYPES } from '../types';
+import { OvertimeRecord, Employee, OVERTIME_TYPES, UserRole } from '../types';
 import { getWorkScheduleForDate, formatHoursDisplay } from '../utils/schedule';
 
 interface CalendarViewProps {
@@ -8,6 +8,7 @@ interface CalendarViewProps {
   setSelectedMonth: (m: string) => void;
   records: OvertimeRecord[];
   employees: Employee[];
+  userRole?: UserRole | null;
   onAddForDate: (dateStr: string) => void;
   onDeleteRecord: (id: string) => void;
   onToggleVerifyRecord: (id: string) => void;
@@ -18,10 +19,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   setSelectedMonth,
   records,
   employees,
+  userRole,
   onAddForDate,
   onDeleteRecord,
   onToggleVerifyRecord,
 }) => {
+  const canAudit = userRole !== 'supervisor';
   const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -357,12 +360,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <span className={rec.verifiedByManager ? 'text-[#0070f3]' : 'text-[#f5a623]'}>
                           {rec.verifiedByManager ? '✓ Auditado' : '○ Pendiente'}
                         </span>
-                        <button
-                          onClick={() => onToggleVerifyRecord(rec.id)}
-                          className="text-[#888888] hover:text-[#171717] dark:hover:text-white underline cursor-pointer"
-                        >
-                          {rec.verifiedByManager ? 'Desmarcar' : 'Verificar'}
-                        </button>
+                        {canAudit && (
+                          <button
+                            onClick={() => onToggleVerifyRecord(rec.id)}
+                            className="text-[#888888] hover:text-[#171717] dark:hover:text-white underline cursor-pointer"
+                          >
+                            {rec.verifiedByManager ? 'Desmarcar' : 'Verificar'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

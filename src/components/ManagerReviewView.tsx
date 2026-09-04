@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, AlertCircle, UserCheck, Search, ShieldCheck, DollarSign, Clock, CheckCheck, Trash2, Edit2, Save, X } from 'lucide-react';
-import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES } from '../types';
+import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES, UserRole } from '../types';
 import { calculateRecordCost, formatCurrency } from '../utils/exporters';
 import { formatHoursDisplay } from '../utils/schedule';
 
@@ -9,6 +9,7 @@ interface ManagerReviewViewProps {
   employees: Employee[];
   settings: CompanySettings;
   selectedMonth: string; // YYYY-MM
+  userRole?: UserRole | null;
   onToggleVerify: (id: string) => void;
   onVerifyAllMonth: () => void;
   onDeleteRecord: (id: string) => void;
@@ -21,12 +22,14 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
   employees,
   settings,
   selectedMonth,
+  userRole,
   onToggleVerify,
   onVerifyAllMonth,
   onDeleteRecord,
   onUpdateRecord,
   onGoToGmailReport,
 }) => {
+  const canSeeCosts = userRole === 'accountant' || userRole === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'verified'>('all');
   const [filterEmployee, setFilterEmployee] = useState('all');
@@ -147,9 +150,11 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
           <div className="bg-[#202020] rounded-[10px] p-3.5 border border-[#2d2d2d]">
             <span className="caption-mono text-[10px] text-neutral-400 flex items-center gap-1">
               <DollarSign className="w-3 h-3 text-neutral-400" />
-              Est. Recargos
+              {canSeeCosts ? 'Est. Recargos' : 'Liquidación'}
             </span>
-            <p className="font-mono text-xl font-semibold text-white mt-1.5 tracking-tight">{formatCurrency(totalSurchargeVal, settings.currencySymbol)}</p>
+            <p className="font-mono text-xl font-semibold text-white mt-1.5 tracking-tight">
+              {canSeeCosts ? formatCurrency(totalSurchargeVal, settings.currencySymbol) : 'Confidencial'}
+            </p>
           </div>
         </div>
       </div>
@@ -309,7 +314,11 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
 
                       {/* Surcharge Value */}
                       <td className="px-4 py-3 whitespace-nowrap text-right font-mono font-medium text-xs text-neutral-800 dark:text-neutral-200">
-                        {formatCurrency(cost, settings.currencySymbol)}
+                        {canSeeCosts ? (
+                          formatCurrency(cost, settings.currencySymbol)
+                        ) : (
+                          <span className="text-[10px] text-neutral-400 font-mono">Confidencial</span>
+                        )}
                       </td>
 
                       {/* Notes */}

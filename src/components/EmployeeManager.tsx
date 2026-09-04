@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { Users, UserPlus, Edit, Trash2, Search, DollarSign, Building, FileText, Upload, Download, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Employee } from '../types';
+import { Employee, UserRole } from '../types';
 import { formatCurrency } from '../utils/exporters';
 
 interface EmployeeManagerProps {
   employees: Employee[];
+  userRole?: UserRole | null;
   onAddEmployee: (emp: Omit<Employee, 'id'>) => void;
   onAddMultipleEmployees?: (emps: Omit<Employee, 'id'>[]) => void;
   onUpdateEmployee: (id: string, updated: Partial<Employee>) => void;
@@ -24,11 +25,13 @@ const PINTECH_DEPARTMENTS = [
 
 export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
   employees,
+  userRole,
   onAddEmployee,
   onAddMultipleEmployees,
   onUpdateEmployee,
   onDeleteEmployee,
 }) => {
+  const canManageSalaries = userRole === 'accountant' || userRole === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -203,31 +206,35 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
             className="hidden"
           />
 
-          <button
-            onClick={handleDownloadTemplate}
-            className="button-secondary text-xs font-medium px-3.5 py-2 rounded-[6px] flex items-center gap-1.5"
-            title="Descargar archivo Excel / CSV de ejemplo"
-          >
-            <Download className="w-3.5 h-3.5 text-neutral-500" />
-            <span>Plantilla CSV</span>
-          </button>
+          {canManageSalaries && (
+            <>
+              <button
+                onClick={handleDownloadTemplate}
+                className="button-secondary text-xs font-medium px-3.5 py-2 rounded-[6px] flex items-center gap-1.5"
+                title="Descargar archivo Excel / CSV de ejemplo"
+              >
+                <Download className="w-3.5 h-3.5 text-neutral-500" />
+                <span>Plantilla CSV</span>
+              </button>
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="button-secondary text-xs font-medium px-3.5 py-2 rounded-[6px] flex items-center gap-1.5"
-            title="Importar lista de personal masivamente"
-          >
-            <Upload className="w-3.5 h-3.5 text-neutral-700 dark:text-neutral-300" />
-            <span>Importar CSV</span>
-          </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="button-secondary text-xs font-medium px-3.5 py-2 rounded-[6px] flex items-center gap-1.5"
+                title="Importar lista de personal masivamente"
+              >
+                <Upload className="w-3.5 h-3.5 text-neutral-700 dark:text-neutral-300" />
+                <span>Importar CSV</span>
+              </button>
 
-          <button
-            onClick={openAddModal}
-            className="button-primary text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Nuevo Empleado</span>
-          </button>
+              <button
+                onClick={openAddModal}
+                className="button-primary text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Nuevo Empleado</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -304,9 +311,15 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                     <DollarSign className="w-3 h-3 text-neutral-400" />
                     Tarifa Hora Base:
                   </span>
-                  <span className="font-mono font-semibold text-neutral-900 dark:text-white text-xs">
-                    {formatCurrency(emp.baseHourlyRate)} / h
-                  </span>
+                  {canManageSalaries ? (
+                    <span className="font-mono font-semibold text-neutral-900 dark:text-white text-xs">
+                      {formatCurrency(emp.baseHourlyRate)} / h
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[10px] text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-[4px]">
+                      Confidencial (Nómina)
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -411,19 +424,26 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
-                  Valor Hora Base Ordinaria ($)
-                </label>
-                <input
-                  type="number"
-                  step="500"
-                  min="0"
-                  value={baseHourlyRate}
-                  onChange={(e) => setBaseHourlyRate(parseFloat(e.target.value) || 0)}
-                  className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
-                />
-              </div>
+              {canManageSalaries ? (
+                <div>
+                  <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
+                    Valor Hora Base Ordinaria ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="500"
+                    min="0"
+                    value={baseHourlyRate}
+                    onChange={(e) => setBaseHourlyRate(parseFloat(e.target.value) || 0)}
+                    className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                  />
+                </div>
+              ) : (
+                <div className="p-2.5 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-[6px] text-xs text-neutral-500">
+                  <span className="caption-mono text-[10px] uppercase block text-neutral-400 mb-0.5">Tarifa Salarial</span>
+                  <span>Gestionada exclusivamente por el Contador / Nómina.</span>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
                 <button

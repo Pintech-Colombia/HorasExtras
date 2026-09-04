@@ -23,6 +23,7 @@ export default function App() {
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [session, setSession] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [activeRole, setActiveRole] = useState<UserRole>('manager');
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
@@ -46,6 +47,16 @@ export default function App() {
 
   // Active Tab
   const [currentTab, setCurrentTab] = useState<'calendar' | 'review' | 'gmail' | 'employees' | 'settings'>('calendar');
+
+  // Cambiar rol activo y aplicar guardias de pestaña
+  const handleRoleSwitch = (newRole: UserRole) => {
+    setActiveRole(newRole);
+    if (newRole === 'supervisor' && currentTab !== 'calendar') {
+      setCurrentTab('calendar');
+    } else if (newRole === 'manager' && currentTab === 'settings') {
+      setCurrentTab('calendar');
+    }
+  };
 
   // Add Overtime Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -85,21 +96,25 @@ export default function App() {
         .maybeSingle();
 
       if (data) {
+        const role = (data.role as UserRole) || 'supervisor';
         setUserProfile({
           id: data.id,
           email: data.email,
           fullName: data.full_name,
-          role: (data.role as UserRole) || 'supervisor',
+          role,
           companyId: data.company_id,
         });
+        setActiveRole(role);
       } else {
         // Fallback perfil basado en metadata de Auth
+        const role = (authUser.user_metadata?.role as UserRole) || 'supervisor';
         setUserProfile({
           id: authUser.id,
           email: authUser.email || '',
           fullName: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuario Pintech',
-          role: (authUser.user_metadata?.role as UserRole) || 'supervisor',
+          role,
         });
+        setActiveRole(role);
       }
     } catch (err) {
       if (import.meta.env.DEV) {
@@ -321,14 +336,15 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
         userEmail={session?.user?.email || (isDemoMode ? 'Modo Local' : null)}
         userName={userProfile?.fullName || null}
-        userRole={userProfile?.role || null}
+        userRole={activeRole}
+        onRoleSwitch={handleRoleSwitch}
         periodType={periodType}
         onPeriodChange={setPeriodType}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
       />
 
-      {/* Main View Container */}
+      {/* Main View Container con Guardias de Seguridad por Rol */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {isLoading && (
           <div className="mb-4 flex items-center justify-center p-3 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] caption-mono text-xs text-neutral-500 dark:text-neutral-400 shadow-vercel-subtle animate-pulse">
@@ -336,24 +352,28 @@ export default function App() {
           </div>
         )}
 
+        {/* 1. Calendario: Accesible por todos los roles */}
         {currentTab === 'calendar' && (
           <CalendarView
             selectedMonth={selectedMonth}
             setSelectedMonth={setSelectedMonth}
             records={records}
             employees={employees}
+            userRole={activeRole}
             onAddForDate={handleOpenModalForDate}
             onDeleteRecord={handleDeleteRecord}
             onToggleVerifyRecord={handleToggleVerifyRecord}
           />
         )}
 
-        {currentTab === 'review' && (
+        {/* 2. Auditoría: Accesible por Jefa y Contador */}
+        {currentTab === 'review' && activeRole !== 'supervisor' && (
           <ManagerReviewView
             records={monthRecords}
             employees={employees}
             settings={settings}
             selectedMonth={selectedMonth}
+            userRole={activeRole}
             onToggleVerify={handleToggleVerifyRecord}
             onVerifyAllMonth={handleVerifyAllMonth}
             onDeleteRecord={handleDeleteRecord}
@@ -362,7 +382,8 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'gmail' && (
+        {/* 3. Formato Gmail & Nómina: Accesible por Jefa y Contador */}
+        {currentTab === 'gmail' && activeRole !== 'supervisor' && (
           <GmailReportBuilder
             records={monthRecords}
             employees={employees}
@@ -371,9 +392,11 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'employees' && (
+        {/* 4. Personal de Planta: Accesible por Jefa y Contador */}
+        {currentTab === 'employees' && activeRole !== 'supervisor' && (
           <EmployeeManager
             employees={employees}
+            userRole={activeRole}
             onAddEmployee={handleAddEmployee}
             onAddMultipleEmployees={handleAddMultipleEmployees}
             onUpdateEmployee={handleUpdateEmployee}
@@ -381,9 +404,11 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'settings' && (
+        {/* 5. Configuración: Exclusivo para Contador y Administrador */}
+        {currentTab === 'settings' && (activeRole === 'accountant' || activeRole === 'admin') && (
           <CompanySettingsView
             settings={settings}
+            userRole={activeRole}
             onSaveSettings={handleUpdateSettings}
             onResetDefaults={handleResetDefaults}
           />
