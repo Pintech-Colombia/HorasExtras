@@ -112,6 +112,64 @@ export const createEmployee = async (
   }
 };
 
+export const createMultipleEmployees = async (
+  newEmps: Omit<Employee, 'id'>[],
+  companyId?: string
+): Promise<Employee[]> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const createdList: Employee[] = newEmps.map((emp, idx) => ({
+      ...emp,
+      id: `emp-${Date.now()}-${idx}`,
+    }));
+    const current = loadEmployees();
+    const updated = [...createdList, ...current];
+    saveEmployees(updated);
+    return createdList;
+  }
+
+  try {
+    const payloads = newEmps.map((e) => ({
+      company_id: companyId || null,
+      document_id: e.documentId,
+      name: e.name,
+      position: e.position,
+      department: e.department || 'Operaciones',
+      base_hourly_rate: e.baseHourlyRate || 15000,
+      active: e.active !== false,
+    }));
+
+    const { data, error } = await supabase
+      .from('employees')
+      .insert(payloads)
+      .select();
+
+    if (error) throw error;
+
+    const mapped: Employee[] = data.map((d: any) => ({
+      id: d.id,
+      documentId: d.document_id,
+      name: d.name,
+      position: d.position,
+      department: d.department,
+      baseHourlyRate: Number(d.base_hourly_rate),
+      active: d.active,
+    }));
+
+    const current = loadEmployees();
+    saveEmployees([...mapped, ...current]);
+    return mapped;
+  } catch (err) {
+    console.error('Error creating multiple employees in Supabase, saving locally:', err);
+    const fallbackList: Employee[] = newEmps.map((emp, idx) => ({
+      ...emp,
+      id: `emp-${Date.now()}-${idx}`,
+    }));
+    const current = loadEmployees();
+    saveEmployees([...fallbackList, ...current]);
+    return fallbackList;
+  }
+};
+
 export const updateEmployee = async (
   id: string,
   partial: Partial<Employee>
