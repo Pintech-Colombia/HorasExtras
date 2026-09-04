@@ -25,7 +25,7 @@ create table if not exists public.profiles (
   company_id uuid references public.companies(id) on delete set null,
   full_name text not null,
   email text not null,
-  role text not null check (role in ('admin', 'manager', 'accountant')) default 'manager',
+  role text not null check (role in ('admin', 'manager', 'accountant', 'supervisor')) default 'manager',
   created_at timestamptz default now()
 );
 

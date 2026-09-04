@@ -17,7 +17,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'supervisor' | 'manager' | 'accountant'>('supervisor');
+  const [role] = useState<'manager' | 'accountant'>('manager');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           options: {
             data: {
               full_name: fullName,
-              role: role,
+              role: 'manager',
             },
           },
         });
@@ -56,7 +56,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         if (error) throw error;
 
         if (data.user && !data.session) {
-          setSuccessMsg('Cuenta creada. Revisa tu correo electrónico para confirmar tu cuenta.');
+          setSuccessMsg('Cuenta creada con éxito. Si tienes activada la confirmación de email en Supabase, revisa tu bandeja de entrada o desactiva "Confirm email" en Supabase Auth.');
         } else {
           setSuccessMsg('Registro exitoso. Redirigiendo al panel...');
           setTimeout(() => {
