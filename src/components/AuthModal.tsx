@@ -13,7 +13,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'manager' | 'accountant'>('manager');
+  const [role] = useState<'supervisor' | 'manager' | 'accountant'>('supervisor');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -160,20 +160,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                       className="form-input w-full pl-9 pr-3 h-9 rounded-[6px] text-xs"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
-                    Rol en la Empresa
-                  </label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as any)}
-                    className="form-input w-full px-3 h-9 rounded-[6px] text-xs"
-                  >
-                    <option value="manager">Encargado de Operaciones / Planta</option>
-                    <option value="accountant">Contador / Recursos Humanos</option>
-                  </select>
                 </div>
               </>
             )}

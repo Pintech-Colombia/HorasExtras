@@ -63,7 +63,7 @@ Responde únicamente con un objeto JSON válido sin bloques markdown adicionales
 `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

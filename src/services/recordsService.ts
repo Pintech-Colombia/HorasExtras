@@ -34,7 +34,8 @@ export const getRecords = async (monthStr?: string, companyId?: string): Promise
     }
 
     if (!data || data.length === 0) {
-      return loadRecords();
+      saveRecords([]);
+      return [];
     }
 
     const mapped: OvertimeRecord[] = data.map((d: any) => ({

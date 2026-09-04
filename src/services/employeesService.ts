@@ -25,9 +25,8 @@ export const getEmployees = async (companyId?: string): Promise<Employee[]> => {
     }
 
     if (!data || data.length === 0) {
-      // Si la base de datos está vacía, retornar los locales
-      const local = loadEmployees();
-      return local;
+      saveEmployees([]);
+      return [];
     }
 
     // Mapear campos de base de datos a interfaz frontend

@@ -191,21 +191,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   />
                 </div>
               </div>
-
-              <div>
-                <label className="block text-[11px] font-mono-tech uppercase tracking-wider text-[#666666] dark:text-[#888888] mb-1">
-                  Rol en Pintech
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as any)}
-                  className="w-full h-10 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] px-3 text-xs text-[#171717] dark:text-white focus:outline-none focus:border-[#171717] dark:focus:border-white transition-colors cursor-pointer"
-                >
-                  <option value="supervisor">Supervisor de Planta (Registro)</option>
-                  <option value="manager">Jefe de Planta / Operaciones (Auditoría)</option>
-                  <option value="accountant">Contabilidad & Nómina (Liquidación)</option>
-                </select>
-              </div>
             </>
           )}
 
