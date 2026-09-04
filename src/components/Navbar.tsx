@@ -69,10 +69,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'bg-[#fafafa] dark:bg-[#111111] text-[#171717] dark:text-[#ededed] border-[#ebebeb] dark:border-[#262626] hover:border-[#a1a1a1]'
                   : 'bg-[#f5f5f5] text-[#888888] border-[#ebebeb] dark:border-[#262626]'
               }`}
-              title={isCloudActive ? 'Conectado a Supabase PostgreSQL' : 'Modo Local activo'}
+              title={isCloudActive ? 'Servidor Corporativo en Línea' : 'Modo Local'}
             >
               <span className={`w-1.5 h-1.5 rounded-full ${isCloudActive ? 'bg-[#0070f3]' : 'bg-[#888888]'}`} />
-              <span>{isCloudActive ? 'supabase' : 'local'}</span>
+              <span>{isCloudActive ? 'en línea' : 'local'}</span>
             </button>
           </div>
 

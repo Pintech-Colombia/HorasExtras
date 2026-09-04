@@ -62,14 +62,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
 
         if (error) throw error;
 
-        setSuccessMsg('¡Bienvenido! Sesión iniciada.');
+        setSuccessMsg('Sesión iniciada con éxito.');
         setTimeout(() => {
           onAuthSuccess?.();
           onClose();
         }, 800);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Ocurrió un error al autenticar.');
+      console.error('Auth error:', err);
+      const msg = (err?.message || '').toLowerCase();
+      if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+        setErrorMsg('Credenciales incorrectas. Verifica tu correo y contraseña.');
+      } else if (msg.includes('email not confirmed')) {
+        setErrorMsg('Debes confirmar tu correo electrónico antes de ingresar.');
+      } else if (msg.includes('user already registered') || msg.includes('already exists')) {
+        setErrorMsg('No fue posible completar el registro. Verifica los datos o inicia sesión.');
+      } else if (msg.includes('password should be at least')) {
+        setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
+      } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
+        setErrorMsg('Demasiados intentos. Por favor espera unos minutos antes de intentar de nuevo.');
+      } else {
+        setErrorMsg(isSignUp ? 'No fue posible crear la cuenta. Verifica los datos ingresados.' : 'No fue posible iniciar sesión. Verifica tus credenciales.');
+      }
     } finally {
       setLoading(false);
     }
@@ -89,32 +103,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
 
           <div className="flex items-center gap-2 caption-mono text-[10px] text-neutral-400 mb-2">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            Acceso Seguro
+            Acceso Corporativo
           </div>
           <h2 className="text-xl font-semibold tracking-display-sm">
-            {isSignUp ? 'Crear Cuenta de Empresa' : 'Iniciar Sesión'}
+            {isSignUp ? 'Crear Cuenta Corporativa' : 'Iniciar Sesión'}
           </h2>
           <p className="text-xs text-neutral-400 mt-1 font-sans">
             {isSignUp
-              ? 'Registra tu usuario para sincronizar en tiempo real con Supabase.'
-              : 'Ingresa con tu correo corporativo para acceder a los registros.'}
+              ? 'Registra tu usuario para acceder al sistema de horas extras.'
+              : 'Ingresa con tus credenciales autorizadas de Pintech.'}
           </p>
         </div>
 
-        {/* Supabase Not Configured Warning */}
+        {/* Offline / Cloud Unreachable Notice */}
         {!isConfigured && (
-          <div className="p-6 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 space-y-3">
-            <div className="flex items-start gap-2.5 text-amber-800 dark:text-amber-300">
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div className="p-6 bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 space-y-3">
+            <div className="flex items-start gap-2.5 text-neutral-700 dark:text-neutral-300">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
               <div className="text-xs font-sans">
-                <p className="font-semibold">Supabase aún no está conectado</p>
-                <p className="mt-1 text-neutral-600 dark:text-neutral-400">
-                  La app está funcionando en <strong>Modo Local</strong>. Para activar sincronización en la nube:
+                <p className="font-semibold">Servicio en la nube no disponible</p>
+                <p className="mt-1 text-neutral-500 dark:text-neutral-400">
+                  La plataforma está operando en <strong>Modo Local</strong> en este dispositivo.
                 </p>
-                <ol className="list-decimal list-inside mt-2 space-y-1 font-mono text-[11px] text-neutral-700 dark:text-neutral-300">
-                  <li>Copia el archivo <code>supabase/schema.sql</code> en tu panel de Supabase.</li>
-                  <li>Agrega <code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_ANON_KEY</code> a tu <code>.env</code> o en Vercel.</li>
-                </ol>
               </div>
             </div>
             <button

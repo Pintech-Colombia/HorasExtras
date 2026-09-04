@@ -330,7 +330,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {isLoading && (
           <div className="mb-4 flex items-center justify-center p-3 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] caption-mono text-xs text-neutral-500 dark:text-neutral-400 shadow-vercel-subtle animate-pulse">
-            Sincronizando registros con Supabase...
+            Sincronizando registros de nómina...
           </div>
         )}
 

@@ -56,9 +56,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         if (error) throw error;
 
         if (data.user && !data.session) {
-          setSuccessMsg('Cuenta creada con éxito. Si tienes activada la confirmación de email en Supabase, revisa tu bandeja de entrada o desactiva "Confirm email" en Supabase Auth.');
+          setSuccessMsg('Cuenta creada con éxito. Si tu cuenta requiere confirmación por correo, revisa tu bandeja de entrada para activarla.');
         } else {
-          setSuccessMsg('Registro exitoso. Redirigiendo al panel...');
+          setSuccessMsg('Registro exitoso. Iniciando sesión...');
           setTimeout(() => {
             onLoginSuccess();
           }, 800);
@@ -77,8 +77,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         }, 600);
       }
     } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.message || 'Error al conectar con Supabase.');
+      console.error('Auth error:', err);
+      const msg = (err?.message || '').toLowerCase();
+      if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+        setErrorMsg('Credenciales incorrectas. Verifica tu correo y contraseña.');
+      } else if (msg.includes('email not confirmed')) {
+        setErrorMsg('Debes confirmar tu correo electrónico antes de ingresar.');
+      } else if (msg.includes('user already registered') || msg.includes('already exists')) {
+        setErrorMsg('No fue posible completar el registro. Verifica los datos o inicia sesión.');
+      } else if (msg.includes('password should be at least')) {
+        setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
+      } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
+        setErrorMsg('Demasiados intentos. Por favor espera unos minutos antes de intentar de nuevo.');
+      } else {
+        setErrorMsg(isSignUp ? 'No fue posible crear la cuenta. Verifica los datos ingresados.' : 'No fue posible iniciar sesión. Verifica tus credenciales.');
+      }
     } finally {
       setLoading(false);
     }
