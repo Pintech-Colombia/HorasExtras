@@ -147,7 +147,7 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
             className="text-xs text-neutral-400 hover:text-red-500 font-medium flex items-center gap-1.5 transition font-sans"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Restablecer Datos de Ejemplo</span>
+            <span>Restablecer Valores Predeterminados</span>
           </button>
 
           <button

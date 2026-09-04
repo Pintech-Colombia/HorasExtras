@@ -46,13 +46,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         if (error) throw error;
 
         if (data.user && !data.session) {
-          setSuccessMsg('¡Cuenta creada! Te hemos enviado un enlace de confirmación a tu correo.');
+          setSuccessMsg('Solicitud enviada. Si la cuenta requiere activación previa, consulta la bandeja de entrada.');
         } else {
-          setSuccessMsg('¡Registro exitoso! Iniciando sesión...');
+          setSuccessMsg('Registro exitoso. Iniciando sesión...');
           setTimeout(() => {
             onAuthSuccess?.();
             onClose();
-          }, 1200);
+          }, 800);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -66,23 +66,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         setTimeout(() => {
           onAuthSuccess?.();
           onClose();
-        }, 800);
+        }, 600);
       }
     } catch (err: any) {
-      console.error('Auth error:', err);
+      if (import.meta.env.DEV) {
+        console.error('Auth debug error:', err);
+      }
       const msg = (err?.message || '').toLowerCase();
       if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
-        setErrorMsg('Credenciales incorrectas. Verifica tu correo y contraseña.');
+        setErrorMsg('Credenciales incorrectas o cuenta no autorizada. Verifica tu información.');
       } else if (msg.includes('email not confirmed')) {
-        setErrorMsg('Debes confirmar tu correo electrónico antes de ingresar.');
+        setErrorMsg('No fue posible iniciar sesión. Verifica tus credenciales o el estado de activación de tu cuenta.');
       } else if (msg.includes('user already registered') || msg.includes('already exists')) {
-        setErrorMsg('No fue posible completar el registro. Verifica los datos o inicia sesión.');
+        setErrorMsg('No fue posible completar la solicitud. Si ya dispones de una cuenta, intenta acceder directamente.');
       } else if (msg.includes('password should be at least')) {
-        setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
+        setErrorMsg('La contraseña no cumple con los requisitos mínimos de longitud (mínimo 6 caracteres).');
       } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
-        setErrorMsg('Demasiados intentos. Por favor espera unos minutos antes de intentar de nuevo.');
+        setErrorMsg('Demasiados intentos. Por motivos de seguridad, espera unos minutos antes de intentar de nuevo.');
       } else {
-        setErrorMsg(isSignUp ? 'No fue posible crear la cuenta. Verifica los datos ingresados.' : 'No fue posible iniciar sesión. Verifica tus credenciales.');
+        setErrorMsg(isSignUp 
+          ? 'No fue posible procesar el registro con los datos suministrados.' 
+          : 'No fue posible iniciar sesión. Verifica tus credenciales.');
       }
     } finally {
       setLoading(false);
@@ -166,7 +170,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Ej. Ing. Carlos Pérez"
+                      placeholder="Nombre y apellido"
                       className="form-input w-full pl-9 pr-3 h-9 rounded-[6px] text-xs"
                     />
                   </div>
@@ -185,7 +189,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@empresa.com"
+                  placeholder="colaborador@pintech.co"
                   className="form-input w-full pl-9 pr-3 h-9 rounded-[6px] text-xs font-mono"
                 />
               </div>

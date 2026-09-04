@@ -36,7 +36,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           redirectTo: window.location.origin,
         });
         if (error) throw error;
-        setSuccessMsg('Enlace de recuperación enviado. Revisa tu bandeja de entrada.');
+        setSuccessMsg('Si el correo corresponde a una cuenta registrada, recibirás las instrucciones de recuperación.');
         setLoading(false);
         return;
       }
@@ -56,7 +56,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         if (error) throw error;
 
         if (data.user && !data.session) {
-          setSuccessMsg('Cuenta creada con éxito. Si tu cuenta requiere confirmación por correo, revisa tu bandeja de entrada para activarla.');
+          setSuccessMsg('Solicitud enviada. Si la cuenta requiere activación previa, consulta la bandeja de entrada.');
         } else {
           setSuccessMsg('Registro exitoso. Iniciando sesión...');
           setTimeout(() => {
@@ -77,20 +77,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         }, 600);
       }
     } catch (err: any) {
-      console.error('Auth error:', err);
+      if (import.meta.env.DEV) {
+        console.error('Auth debug error:', err);
+      }
       const msg = (err?.message || '').toLowerCase();
       if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
-        setErrorMsg('Credenciales incorrectas. Verifica tu correo y contraseña.');
+        setErrorMsg('Credenciales incorrectas o cuenta no autorizada. Verifica tu información.');
       } else if (msg.includes('email not confirmed')) {
-        setErrorMsg('Debes confirmar tu correo electrónico antes de ingresar.');
+        setErrorMsg('No fue posible iniciar sesión. Verifica tus credenciales o el estado de activación de tu cuenta.');
       } else if (msg.includes('user already registered') || msg.includes('already exists')) {
-        setErrorMsg('No fue posible completar el registro. Verifica los datos o inicia sesión.');
+        setErrorMsg('No fue posible completar la solicitud. Si ya dispones de una cuenta, intenta acceder directamente.');
       } else if (msg.includes('password should be at least')) {
-        setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
+        setErrorMsg('La contraseña no cumple con los requisitos mínimos de longitud (mínimo 6 caracteres).');
       } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
-        setErrorMsg('Demasiados intentos. Por favor espera unos minutos antes de intentar de nuevo.');
+        setErrorMsg('Demasiados intentos. Por motivos de seguridad, espera unos minutos antes de intentar de nuevo.');
       } else {
-        setErrorMsg(isSignUp ? 'No fue posible crear la cuenta. Verifica los datos ingresados.' : 'No fue posible iniciar sesión. Verifica tus credenciales.');
+        setErrorMsg(isSignUp 
+          ? 'No fue posible procesar el registro con los datos suministrados.' 
+          : 'No fue posible iniciar sesión. Verifica tus credenciales.');
       }
     } finally {
       setLoading(false);
@@ -199,7 +203,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Ej. Ing. Carlos Pérez"
+                    placeholder="Nombre y apellido"
                     className="w-full h-10 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] pl-9 pr-3 text-xs text-[#171717] dark:text-white placeholder-[#888888] focus:outline-none focus:border-[#171717] dark:focus:border-white transition-colors"
                   />
                 </div>
@@ -218,7 +222,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="usuario@pintech.co"
+                placeholder="colaborador@pintech.co"
                 className="w-full h-10 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] pl-9 pr-3 text-xs text-[#171717] dark:text-white placeholder-[#888888] focus:outline-none focus:border-[#171717] dark:focus:border-white transition-colors"
               />
             </div>

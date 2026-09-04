@@ -102,7 +102,9 @@ export default function App() {
         });
       }
     } catch (err) {
-      console.error('Error al cargar perfil de usuario:', err);
+      if (import.meta.env.DEV) {
+        console.error('Error al cargar perfil de usuario:', err);
+      }
     }
   };
 
@@ -119,7 +121,9 @@ export default function App() {
       setRecords(fetchedRecords);
       setSettings(fetchedSettings);
     } catch (error) {
-      console.error('Error al cargar datos iniciales:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error al cargar datos iniciales:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -257,11 +261,9 @@ export default function App() {
   };
 
   const handleResetDefaults = () => {
-    if (window.confirm('¿Estás seguro de que deseas restablecer los datos de ejemplo predeterminados?')) {
-      const reseted = resetDataToDefaults();
-      setEmployees(reseted.employees);
-      setRecords(reseted.records);
-      setSettings(reseted.settings);
+    if (window.confirm('¿Deseas restablecer los parámetros de la empresa a los valores iniciales?')) {
+      setSettings(INITIAL_SETTINGS);
+      updateCompanySettings(INITIAL_SETTINGS, userProfile?.companyId);
     }
   };
 
@@ -298,7 +300,7 @@ export default function App() {
     return (
       <LoginScreen
         onLoginSuccess={loadInitialData}
-        onContinueOffline={() => setIsDemoMode(true)}
+        onContinueOffline={import.meta.env.DEV ? () => setIsDemoMode(true) : undefined}
       />
     );
   }
