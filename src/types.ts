@@ -85,3 +85,15 @@ export interface GeneratedEmailReport {
   auditSummary: string;
   generatedAt: string;
 }
+
+export type UserRole = 'supervisor' | 'manager' | 'accountant' | 'admin';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  companyId?: string;
+}
+
+export type PeriodType = 'full_month' | 'first_half' | 'second_half';

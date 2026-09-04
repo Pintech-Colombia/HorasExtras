@@ -1,7 +1,8 @@
 import React from 'react';
-import { Calendar, CheckCircle2, Mail, Users, PlusCircle, Settings, Building2, Sun, Moon, Cloud, Database, User as UserIcon, LogOut, LogIn } from 'lucide-react';
-import { CompanySettings } from '../types';
+import { Calendar, CheckCircle2, Mail, Users, PlusCircle, Settings, Building2, Sun, Moon, Cloud, Database, User as UserIcon, LogOut, LogIn, Shield } from 'lucide-react';
+import { CompanySettings, UserRole, PeriodType } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { PintechLogo } from './PintechLogo';
 
 interface NavbarProps {
   currentTab: 'calendar' | 'review' | 'gmail' | 'employees' | 'settings';
@@ -15,6 +16,10 @@ interface NavbarProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
   userEmail?: string | null;
+  userName?: string | null;
+  userRole?: UserRole | null;
+  periodType?: PeriodType;
+  onPeriodChange?: (p: PeriodType) => void;
   onOpenAuth: () => void;
   onSignOut: () => void;
 }
@@ -31,34 +36,29 @@ export const Navbar: React.FC<NavbarProps> = ({
   isDarkMode,
   onToggleTheme,
   userEmail,
+  userName,
+  userRole,
+  periodType = 'full_month',
+  onPeriodChange,
   onOpenAuth,
   onSignOut,
 }) => {
   const isCloudActive = isSupabaseConfigured();
 
+  const roleBadgeMap: Record<UserRole, { label: string; bg: string }> = {
+    supervisor: { label: 'Supervisor Planta', bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+    manager: { label: 'Jefe de Planta', bg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+    accountant: { label: 'Contabilidad', bg: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+    admin: { label: 'Administrador', bg: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
+  };
+
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between py-3 gap-3">
-          {/* Brand & App Name */}
+          {/* Brand & App Name with Pintech Logo */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-white shrink-0">
-                <Calendar className="w-4 h-4 text-slate-200" />
-              </div>
-              <div>
-                <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
-                  Control de Horas Extras
-                  <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono border border-slate-700">
-                    Nómina & Gmail
-                  </span>
-                </h1>
-                <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                  <Building2 className="w-3 h-3 text-slate-400" />
-                  {settings.companyName}
-                </p>
-              </div>
-            </div>
+            <PintechLogo size="sm" showSubtitle={true} />
 
             {/* Mobile Actions */}
             <div className="flex md:hidden items-center gap-2">
@@ -113,6 +113,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
+            {/* Period Selector (Mes / 1ra Quincena / 2da Quincena) */}
+            <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
+              <span className="text-slate-400 font-medium">Periodo:</span>
+              <select
+                value={periodType}
+                onChange={(e) => onPeriodChange?.(e.target.value as PeriodType)}
+                className="bg-transparent text-white font-semibold text-xs border-none focus:outline-none cursor-pointer"
+              >
+                <option value="full_month" className="bg-slate-900 text-white">Mes Completo</option>
+                <option value="first_half" className="bg-slate-900 text-white">1ra Quincena (1-15)</option>
+                <option value="second_half" className="bg-slate-900 text-white">2da Quincena (16-Fin)</option>
+              </select>
+            </div>
+
             <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-1.5 text-xs">
               <span className="text-slate-400 font-medium">Mes:</span>
               <input
@@ -146,15 +160,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* User Session Button / Auth Modal trigger */}
+            {/* User Session Button with Role Badge */}
             {userEmail ? (
               <div className="hidden sm:flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
-                <span className="text-slate-300 max-w-[120px] truncate" title={userEmail}>
-                  {userEmail}
+                {userRole && roleBadgeMap[userRole] && (
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border ${roleBadgeMap[userRole].bg}`}>
+                    {roleBadgeMap[userRole].label}
+                  </span>
+                )}
+                <span className="text-slate-300 max-w-[130px] truncate" title={userEmail}>
+                  {userName || userEmail}
                 </span>
                 <button
                   onClick={onSignOut}
-                  className="text-slate-400 hover:text-red-400 transition"
+                  className="text-slate-400 hover:text-red-400 transition ml-1"
                   title="Cerrar sesión"
                 >
                   <LogOut className="w-3.5 h-3.5" />

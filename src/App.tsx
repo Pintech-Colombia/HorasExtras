@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Employee, OvertimeRecord, CompanySettings } from './types';
-import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from './services/employeesService';
+import { Employee, OvertimeRecord, CompanySettings, UserProfile, UserRole, PeriodType } from './types';
+import { getEmployees, createEmployee, createMultipleEmployees, updateEmployee, deleteEmployee } from './services/employeesService';
 import { getRecords, createRecords, updateRecord, deleteRecord, verifyAllMonthRecords } from './services/recordsService';
 import { getCompanySettings, updateCompanySettings } from './services/companyService';
 import { resetDataToDefaults } from './utils/storage';
-import { supabase } from './lib/supabase';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { CalendarView } from './components/CalendarView';
 import { ManagerReviewView } from './components/ManagerReviewView';
@@ -12,30 +12,37 @@ import { GmailReportBuilder } from './components/GmailReportBuilder';
 import { EmployeeManager } from './components/EmployeeManager';
 import { CompanySettingsView } from './components/CompanySettingsView';
 import { AddOvertimeModal } from './components/AddOvertimeModal';
+import { LoginScreen } from './components/LoginScreen';
 import { AuthModal } from './components/AuthModal';
+import { PintechLogo } from './components/PintechLogo';
 
 export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [records, setRecords] = useState<OvertimeRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [session, setSession] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
   const [settings, setSettings] = useState<CompanySettings>({
-    companyName: 'Industrias y Suministros S.A.S.',
-    companyNIT: '900.123.456-7',
-    accountantName: 'Dr. Roberto Suárez (Contador)',
-    accountantEmail: 'contabilidad@empresa.com',
-    managerName: 'Ing. Fernando Morales',
-    managerTitle: 'Encargado de Operaciones y Planta',
+    companyName: 'Pintech Colombia S.A.S.',
+    companyNIT: '901.456.789-0',
+    accountantName: 'Dpto. Contabilidad & Nómina',
+    accountantEmail: 'contabilidad@pintech.co',
+    managerName: 'Jefe de Operaciones & Planta',
+    managerTitle: 'Operaciones y Producción Pintech',
     currencySymbol: '$',
   });
-
-  // Supabase Auth State
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   // Current Month selector YYYY-MM
   const today = new Date();
   const defaultMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonthStr);
+
+  // Period Type selector ('full_month' | 'first_half' | 'second_half')
+  const [periodType, setPeriodType] = useState<PeriodType>('full_month');
 
   // Active Tab
   const [currentTab, setCurrentTab] = useState<'calendar' | 'review' | 'gmail' | 'employees' | 'settings'>('calendar');
@@ -67,7 +74,39 @@ export default function App() {
     setIsDarkMode((prev) => !prev);
   };
 
-  // Carga inicial asíncrona de datos desde Supabase (con fallback local)
+  // Helper para consultar perfil del usuario desde Supabase
+  const fetchUserProfile = async (authUser: any) => {
+    if (!supabase) return;
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (data) {
+        setUserProfile({
+          id: data.id,
+          email: data.email,
+          fullName: data.full_name,
+          role: (data.role as UserRole) || 'supervisor',
+          companyId: data.company_id,
+        });
+      } else {
+        // Fallback perfil basado en metadata de Auth
+        setUserProfile({
+          id: authUser.id,
+          email: authUser.email || '',
+          fullName: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuario Pintech',
+          role: (authUser.user_metadata?.role as UserRole) || 'supervisor',
+        });
+      }
+    } catch (err) {
+      console.error('Error al cargar perfil de usuario:', err);
+    }
+  };
+
+  // Carga inicial asíncrona de datos desde Supabase
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -89,17 +128,28 @@ export default function App() {
   // Escuchar sesión de Supabase Auth
   useEffect(() => {
     if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setUserEmail(session?.user?.email || null);
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        setSession(session);
+        if (session?.user) {
+          await fetchUserProfile(session.user);
+        }
+        setIsAuthChecking(false);
+        loadInitialData();
       });
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUserEmail(session?.user?.email || null);
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        setSession(session);
+        if (session?.user) {
+          await fetchUserProfile(session.user);
+        } else {
+          setUserProfile(null);
+        }
         loadInitialData();
       });
 
       return () => subscription.unsubscribe();
     } else {
+      setIsAuthChecking(false);
       loadInitialData();
     }
   }, [loadInitialData]);
@@ -107,8 +157,8 @@ export default function App() {
   const handleSignOut = async () => {
     if (supabase) {
       await supabase.auth.signOut();
-      setUserEmail(null);
-      loadInitialData();
+      setSession(null);
+      setUserProfile(null);
     }
   };
 
@@ -124,7 +174,7 @@ export default function App() {
   };
 
   const handleSaveNewRecords = async (newRecordsData: Omit<OvertimeRecord, 'id' | 'createdAt'>[]) => {
-    const created = await createRecords(newRecordsData);
+    const created = await createRecords(newRecordsData, userProfile?.companyId, userProfile?.id);
     setRecords((prev) => [...created, ...prev]);
   };
 
@@ -139,7 +189,6 @@ export default function App() {
       verifiedAt: nextVerified ? new Date().toISOString() : undefined,
     };
 
-    // Actualización optimista en UI
     setRecords((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...partial } : r))
     );
@@ -148,7 +197,6 @@ export default function App() {
   };
 
   const handleVerifyAllMonth = async () => {
-    // Actualización optimista
     const now = new Date().toISOString();
     setRecords((prev) =>
       prev.map((r) => {
@@ -181,8 +229,13 @@ export default function App() {
 
   // Handlers de Empleados
   const handleAddEmployee = async (newEmp: Omit<Employee, 'id'>) => {
-    const created = await createEmployee(newEmp);
+    const created = await createEmployee(newEmp, userProfile?.companyId);
     setEmployees((prev) => [...prev, created]);
+  };
+
+  const handleAddMultipleEmployees = async (newEmps: Omit<Employee, 'id'>[]) => {
+    const createdList = await createMultipleEmployees(newEmps, userProfile?.companyId);
+    setEmployees((prev) => [...createdList, ...prev]);
   };
 
   const handleUpdateEmployee = async (id: string, partial: Partial<Employee>) => {
@@ -200,7 +253,7 @@ export default function App() {
   // Configuración de la Empresa
   const handleUpdateSettings = async (newSettings: CompanySettings) => {
     setSettings(newSettings);
-    await updateCompanySettings(newSettings);
+    await updateCompanySettings(newSettings, userProfile?.companyId);
   };
 
   const handleResetDefaults = () => {
@@ -212,14 +265,44 @@ export default function App() {
     }
   };
 
-  // Estadísticas del mes seleccionado
-  const monthRecords = records.filter((r) => r.date.startsWith(selectedMonth));
+  // Filtrado de registros por Mes y Periodo Quincenal
+  const monthRecords = records.filter((r) => {
+    if (!r.date.startsWith(selectedMonth)) return false;
+    if (periodType === 'full_month') return true;
+    const day = parseInt(r.date.split('-')[2], 10);
+    if (periodType === 'first_half') return day <= 15;
+    if (periodType === 'second_half') return day >= 16;
+    return true;
+  });
+
   const pendingCount = monthRecords.filter((r) => !r.verifiedByManager).length;
   const verifiedCount = monthRecords.filter((r) => r.verifiedByManager).length;
 
+  // Pantalla de Carga de Autenticación
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <PintechLogo size="lg" showSubtitle={false} />
+        <div className="mt-6 flex items-center gap-2 text-slate-400 text-xs animate-pulse">
+          <span>Verificando credenciales de seguridad...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Auth Gate: Si no está autenticado y no está en modo demo, mostrar Login
+  if (!session && !isDemoMode && isSupabaseConfigured()) {
+    return (
+      <LoginScreen
+        onLoginSuccess={loadInitialData}
+        onContinueOffline={() => setIsDemoMode(true)}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-blue-500 selection:text-white pb-16">
-      {/* Navbar con estado de conexión y sesión */}
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-sky-500 selection:text-white pb-16">
+      {/* Navbar con marca Pintech, selector de quincena y estado de sesión */}
       <Navbar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -231,7 +314,11 @@ export default function App() {
         onOpenNewRecordModal={handleOpenModalGeneral}
         isDarkMode={isDarkMode}
         onToggleTheme={handleToggleTheme}
-        userEmail={userEmail}
+        userEmail={session?.user?.email || (isDemoMode ? 'Modo Local' : null)}
+        userName={userProfile?.fullName || null}
+        userRole={userProfile?.role || null}
+        periodType={periodType}
+        onPeriodChange={setPeriodType}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
       />
@@ -239,8 +326,8 @@ export default function App() {
       {/* Main View Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {isLoading && (
-          <div className="mb-4 flex items-center justify-center p-3 bg-slate-200 dark:bg-slate-900 rounded-xl text-xs text-slate-600 dark:text-slate-400 animate-pulse">
-            Sincronizando datos...
+          <div className="mb-4 flex items-center justify-center p-3 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900 rounded-xl text-xs text-sky-800 dark:text-sky-300 animate-pulse">
+            Sincronizando registros con Supabase...
           </div>
         )}
 
@@ -258,7 +345,7 @@ export default function App() {
 
         {currentTab === 'review' && (
           <ManagerReviewView
-            records={records}
+            records={monthRecords}
             employees={employees}
             settings={settings}
             selectedMonth={selectedMonth}
@@ -272,7 +359,7 @@ export default function App() {
 
         {currentTab === 'gmail' && (
           <GmailReportBuilder
-            records={records}
+            records={monthRecords}
             employees={employees}
             settings={settings}
             selectedMonth={selectedMonth}
@@ -283,6 +370,7 @@ export default function App() {
           <EmployeeManager
             employees={employees}
             onAddEmployee={handleAddEmployee}
+            onAddMultipleEmployees={handleAddMultipleEmployees}
             onUpdateEmployee={handleUpdateEmployee}
             onDeleteEmployee={handleDeleteEmployee}
           />
@@ -306,7 +394,7 @@ export default function App() {
         onSaveRecords={handleSaveNewRecords}
       />
 
-      {/* Modal de Autenticación Supabase */}
+      {/* Modal de Autenticación de respaldo */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
