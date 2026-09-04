@@ -50,11 +50,11 @@ export const INITIAL_EMPLOYEES: Employee[] = [
 
 export const INITIAL_SETTINGS: CompanySettings = {
   companyName: 'Pintech Colombia S.A.S.',
-  companyNIT: '901.456.789-0',
-  accountantName: 'Dpto. Contabilidad & Nómina',
+  companyNIT: '901.123.507-9',
+  accountantName: 'Omar (Contador)',
   accountantEmail: 'contabilidad@pintech.co',
-  managerName: 'Jefe de Operaciones & Planta',
-  managerTitle: 'Operaciones y Producción Pintech',
+  managerName: 'Lorena Vargas',
+  managerTitle: 'Jefa de Producción',
   currencySymbol: '$',
 };
 
