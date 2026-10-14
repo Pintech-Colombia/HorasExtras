@@ -11,7 +11,7 @@ export const recordKeys = {
 // Registros de un mes (YYYY-MM). Se cargan por mes para no superar el límite de filas de Supabase.
 export function useMonthRecords(month: string) {
   const { profile, isDemo } = useAuth();
-  const userId = isDemo ? 'demo' : profile?.id ?? 'anon';
+  const userId = isDemo ? 'demo' : (profile?.id ?? 'anon');
   const query = useQuery({
     queryKey: recordKeys.month(userId, month),
     queryFn: () => getRecords(month),
