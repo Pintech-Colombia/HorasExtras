@@ -178,7 +178,12 @@ export const AddOvertimeDialog: React.FC<AddOvertimeDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent showCloseButton={false} aria-describedby={undefined} className="max-w-lg">
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={undefined}
+        // En celular se muestra como panel inferior (más cómodo con el pulgar)
+        className="max-w-lg max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[94dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-y-0 max-sm:rounded-b-none"
+      >
         {/* Vercel Polarity Flipped #171717 Header */}
         <div className="bg-[#171717] text-white p-4 sm:p-5 flex items-center justify-between border-b border-[#262626]">
           <div className="flex items-center gap-3">
