@@ -134,6 +134,10 @@ create index if not exists idx_overtime_company_date on public.overtime_records 
 create index if not exists idx_overtime_employee on public.overtime_records (employee_id);
 create index if not exists idx_employees_company on public.employees (company_id);
 create index if not exists idx_audit_record on public.audit_log (table_name, record_id);
+create index if not exists idx_rates_company on public.employee_rates (company_id);
+create index if not exists idx_overtime_created_by on public.overtime_records (created_by);
+create index if not exists idx_overtime_verified_by on public.overtime_records (verified_by);
+create index if not exists idx_profiles_company on public.profiles (company_id);
 
 -- 8. SEGURIDAD A NIVEL DE FILAS (RLS) ------------------------------------------
 alter table public.companies enable row level security;
@@ -143,90 +147,90 @@ alter table public.overtime_records enable row level security;
 alter table public.audit_log enable row level security;
 alter table public.employee_rates enable row level security;
 
--- Empresas: todos leen la suya; solo Contador/Admin la editan. Nadie crea ni borra desde la app.
+-- Empresas: todos leen la suya; Jefa, Contador y Admin la editan. Nadie crea ni borra desde la app.
 drop policy if exists companies_select on public.companies;
 create policy companies_select on public.companies for select to authenticated
-  using (id = public.current_company_id());
+  using (id = (select public.current_company_id()));
 
 drop policy if exists companies_update on public.companies;
 create policy companies_update on public.companies for update to authenticated
-  using (id = public.current_company_id() and public.app_role() in ('manager', 'accountant', 'admin'))
-  with check (id = public.current_company_id());
+  using (id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'accountant', 'admin'))
+  with check (id = (select public.current_company_id()));
 
 -- Perfiles: cada quien ve su perfil; jefa/contador/admin ven los de su empresa; solo admin edita (roles).
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select to authenticated
   using (
-    id = auth.uid()
-    or (company_id = public.current_company_id() and public.app_role() in ('manager', 'accountant', 'admin'))
+    id = (select auth.uid())
+    or (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'accountant', 'admin'))
   );
 
 drop policy if exists profiles_update_admin on public.profiles;
 create policy profiles_update_admin on public.profiles for update to authenticated
-  using (company_id = public.current_company_id() and public.app_role() = 'admin')
-  with check (company_id = public.current_company_id());
+  using (company_id = (select public.current_company_id()) and (select public.app_role()) = 'admin')
+  with check (company_id = (select public.current_company_id()));
 
 -- Empleados
 drop policy if exists employees_select on public.employees;
 create policy employees_select on public.employees for select to authenticated
-  using (company_id = public.current_company_id());
+  using (company_id = (select public.current_company_id()));
 
 drop policy if exists employees_insert on public.employees;
 create policy employees_insert on public.employees for insert to authenticated
-  with check (company_id = public.current_company_id() and public.app_role() in ('manager', 'admin'));
+  with check (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'admin'));
 
 drop policy if exists employees_update on public.employees;
 create policy employees_update on public.employees for update to authenticated
-  using (company_id = public.current_company_id() and public.app_role() in ('manager', 'admin'))
-  with check (company_id = public.current_company_id());
+  using (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'admin'))
+  with check (company_id = (select public.current_company_id()));
 
 drop policy if exists employees_delete on public.employees;
 create policy employees_delete on public.employees for delete to authenticated
-  using (company_id = public.current_company_id() and public.app_role() in ('manager', 'admin'));
+  using (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'admin'));
 
 -- Tarifas: solo Jefa, Contador y Admin (el supervisor no las ve)
 drop policy if exists rates_select on public.employee_rates;
 create policy rates_select on public.employee_rates for select to authenticated
-  using (company_id = public.current_company_id() and public.app_role() in ('manager', 'accountant', 'admin'));
+  using (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'accountant', 'admin'));
 
 drop policy if exists rates_insert on public.employee_rates;
 create policy rates_insert on public.employee_rates for insert to authenticated
-  with check (company_id = public.current_company_id() and public.app_role() in ('manager', 'accountant', 'admin'));
+  with check (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'accountant', 'admin'));
 
 drop policy if exists rates_update on public.employee_rates;
 create policy rates_update on public.employee_rates for update to authenticated
-  using (company_id = public.current_company_id() and public.app_role() in ('manager', 'accountant', 'admin'))
-  with check (company_id = public.current_company_id());
+  using (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'accountant', 'admin'))
+  with check (company_id = (select public.current_company_id()));
 
 -- Horas extras
 drop policy if exists records_select on public.overtime_records;
 create policy records_select on public.overtime_records for select to authenticated
-  using (company_id = public.current_company_id());
+  using (company_id = (select public.current_company_id()));
 
 drop policy if exists records_insert on public.overtime_records;
 create policy records_insert on public.overtime_records for insert to authenticated
-  with check (company_id = public.current_company_id() and public.app_role() in ('supervisor', 'manager', 'admin'));
+  with check (company_id = (select public.current_company_id()) and (select public.app_role()) in ('supervisor', 'manager', 'admin'));
 
 drop policy if exists records_update on public.overtime_records;
 -- Solo Jefa y Admin editan/aprueban. El Contador marca "enviado" con la función mark_month_sent().
 create policy records_update on public.overtime_records for update to authenticated
-  using (company_id = public.current_company_id() and public.app_role() in ('manager', 'admin'))
-  with check (company_id = public.current_company_id());
+  using (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'admin'))
+  with check (company_id = (select public.current_company_id()));
 
 drop policy if exists records_delete on public.overtime_records;
 create policy records_delete on public.overtime_records for delete to authenticated
   using (
-    company_id = public.current_company_id()
+    company_id = (select public.current_company_id())
     and (
-      public.app_role() in ('manager', 'admin')
-      or (public.app_role() = 'supervisor' and created_by = auth.uid() and not verified_by_manager)
+      (select public.app_role()) in ('manager', 'admin')
+      or ((select public.app_role()) = 'supervisor' and created_by = (select auth.uid()) and not verified_by_manager)
     )
   );
 
--- Bitácora: solo Admin y Contador la consultan; nadie la edita (la llenan los triggers).
+-- Bitácora: Jefa, Contador y Admin la consultan; nadie la edita (la llenan los triggers).
 drop policy if exists audit_select on public.audit_log;
 create policy audit_select on public.audit_log for select to authenticated
-  using (company_id = public.current_company_id() and public.app_role() in ('manager', 'accountant', 'admin'));
+  using (company_id = (select public.current_company_id()) and (select public.app_role()) in ('manager', 'accountant', 'admin'));
 
 -- 9. REGLAS DE NEGOCIO (triggers) ----------------------------------------------
 
@@ -477,7 +481,7 @@ grant execute on function public.password_changed() to authenticated;
 -- 11. KEEP-ALIVE (evita la pausa del plan gratuito; lo llama GitHub Actions) ---
 create or replace function public.keep_alive()
 returns timestamptz
-language sql stable
+language sql stable set search_path = ''
 as $$ select now() $$;
 
 revoke all on function public.keep_alive() from public;
@@ -501,6 +505,20 @@ where not exists (select 1 from public.profiles p where p.id = u.id);
 
 -- 14. PORCENTAJES CONGELADOS PARA REGISTROS ANTERIORES -------------------------
 update public.overtime_records set updated_at = updated_at where custom_multiplier is null;
+
+
+-- 15. FUNCIONES INTERNAS SIN ACCESO DESDE LA API PÚBLICA ---------------------
+-- Las de triggers no se llaman directo; las de RLS solo con sesión iniciada.
+revoke execute on function public.enforce_overtime_rules() from public, anon, authenticated;
+revoke execute on function public.enforce_employee_rules() from public, anon, authenticated;
+revoke execute on function public.enforce_profile_rules() from public, anon, authenticated;
+revoke execute on function public.write_audit_log() from public, anon, authenticated;
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.type_multiplier(uuid, text) from public, anon, authenticated;
+revoke execute on function public.app_role() from public, anon;
+revoke execute on function public.current_company_id() from public, anon;
+grant execute on function public.app_role() to authenticated;
+grant execute on function public.current_company_id() to authenticated;
 
 -- ==============================================================================
 -- DESPUÉS DE EJECUTAR:

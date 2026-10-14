@@ -98,8 +98,9 @@ Abre tu navegador en `http://localhost:3000` (o el puerto indicado en la consola
 > El esquema **no contiene datos de prueba**. Solo crea tablas, reglas de seguridad y la ficha de la empresa.
 > Verifique el NIT y el correo del contador al final de `supabase/schema.sql` antes de ejecutarlo.
 
-> **¿Ya tiene la base funcionando con la versión anterior (v2)?** Ejecute [`supabase/migration_v3.sql`](./supabase/migration_v3.sql)
-> y luego `schema.sql` completo otra vez. No borra datos.
+> **¿Ya tiene la base funcionando con una versión anterior?** Ejecute las migraciones que falten, en orden:
+> [`migration_v3.sql`](./supabase/migration_v3.sql) y luego `schema.sql` completo (v2→v3); después
+> [`migration_v5.sql`](./supabase/migration_v5.sql) (endurecimiento de seguridad). Ninguna borra datos.
 
 1. Cree un proyecto en [Supabase](https://supabase.com) (plan gratuito). Use un proyecto **separado** para pruebas.
    - **Si reanuda un proyecto pausado** con la versión anterior: descargue un respaldo y ejecute primero
@@ -132,8 +133,16 @@ Las tarifas están en una tabla aparte (`employee_rates`) que el supervisor no p
 Cada registro guarda el porcentaje vigente al crearlo: cambiar los recargos no altera meses anteriores.
 
 **Contraseñas:** cree cada usuario en *Authentication → Users → Add user → Create new user* (con *Auto Confirm User*) y
-entréguele una contraseña temporal; al primer ingreso la app le obliga a crear la suya. Para que "Olvidé mi contraseña"
-funcione, en *Authentication → URL Configuration* ponga la URL de Vercel en **Site URL** y en **Redirect URLs**.
+entréguele una contraseña temporal; al primer ingreso la app le obliga a crear la suya.
+
+**Olvidó su contraseña:** la app no envía correos; la persona contacta al administrador, quien le asigna una contraseña
+temporal desde el *SQL Editor* (al entrar, la app le pide crear una nueva):
+```sql
+update auth.users
+   set encrypted_password = extensions.crypt('Temporal2026*', extensions.gen_salt('bf'))
+ where email = 'persona@empresa.co';
+update public.profiles set must_change_password = true where email = 'persona@empresa.co';
+```
 
 Protecciones adicionales: un empleado con horas registradas no se puede borrar (solo inactivar), los registros
 marcados como enviados a contabilidad quedan bloqueados, la cédula es única y toda modificación queda en `audit_log`.
@@ -171,6 +180,17 @@ de cada mes al cierre.
 3. **Redeploy**. Si faltan las variables de Supabase, la app muestra un aviso y no opera (nunca usa datos locales).
 
 ---
+
+## 📱 Instalar la app en el celular
+
+La app es instalable (PWA): queda con ícono propio en la pantalla de inicio y se abre a pantalla completa.
+
+- **iPhone (Safari):** abrir el enlace → botón **Compartir** (cuadro con flecha) → **Agregar a pantalla de inicio** → **Agregar**.
+- **Android (Chrome):** abrir el enlace → menú **⋮** → **Instalar app** (o **Agregar a pantalla principal**).
+- **PC (Chrome/Edge):** ícono de instalar en la barra de direcciones.
+
+No guarda datos en el teléfono: todo se consulta y guarda en el servidor. Archivos: `public/manifest.webmanifest`,
+`public/sw.js`, `public/icons/`.
 
 ## 🧩 Guía para desarrollar el frontend
 
