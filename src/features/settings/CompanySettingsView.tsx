@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Building2, Mail, ShieldCheck, Save, RefreshCw, Lock, Percent } from 'lucide-react';
-import { CompanySettings, UserRole, OvertimeRules, DEFAULT_OVERTIME_RULES } from '@/types';
+import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { Lock, RotateCcw, Save } from 'lucide-react';
+import { CompanySettings, DEFAULT_OVERTIME_RULES, OvertimeRules, UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useConfirm } from '@/components/ui/confirm';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const WEEKDAYS: { key: string; label: string }[] = [
   { key: '1', label: 'Lunes' },
@@ -15,306 +17,370 @@ const WEEKDAYS: { key: string; label: string }[] = [
   { key: '6', label: 'Sábado' },
 ];
 
-const PCT_FIELDS: { key: keyof OvertimeRules; label: string }[] = [
+type PctKey = 'extraDiurnaPct' | 'extraNocturnaPct' | 'festivaDiurnaPct' | 'festivaNocturnaPct';
+
+const PCT_FIELDS: { key: PctKey; label: string }[] = [
   { key: 'extraDiurnaPct', label: 'Extra diurna' },
   { key: 'extraNocturnaPct', label: 'Extra nocturna' },
-  { key: 'festivaDiurnaPct', label: 'Extra dominical/festiva diurna' },
-  { key: 'festivaNocturnaPct', label: 'Extra dominical/festiva nocturna' },
+  { key: 'festivaDiurnaPct', label: 'Dominical / festiva diurna' },
+  { key: 'festivaNocturnaPct', label: 'Dominical / festiva nocturna' },
 ];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface CompanySettingsViewProps {
   settings: CompanySettings;
   userRole?: UserRole | null;
   onSaveSettings: (s: CompanySettings) => void;
-  onResetDefaults: () => void;
 }
 
-export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
-  settings,
-  userRole,
-  onSaveSettings,
-  onResetDefaults,
-}) => {
-  const confirm = useConfirm();
-  const canEditSettings = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
-  const [formData, setFormData] = useState<CompanySettings>({ ...settings });
+// Sección de configuración: título y explicación a la izquierda (en PC), campos a la derecha
+function Section({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id: string;
+  title: string;
+  description: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      className="grid gap-4 rounded-xl border bg-card p-4 shadow-vercel-card sm:p-5 lg:grid-cols-[260px_1fr] lg:gap-8"
+    >
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <div className="mt-1 text-xs text-muted-foreground">{description}</div>
+      </div>
+      <div className="flex min-w-0 flex-col gap-4">{children}</div>
+    </section>
+  );
+}
 
-  // Sincronizar el formulario cuando llegan los datos del servidor
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+export function CompanySettingsView({ settings, userRole, onSaveSettings }: CompanySettingsViewProps) {
+  const canEditSettings = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
+  const [form, setForm] = useState<CompanySettings>(settings);
+  const [submitted, setSubmitted] = useState(false);
+  const lastSettings = useRef(settings);
+
+  // Cuando llegan datos del servidor se actualiza el formulario, salvo que haya cambios sin guardar
   useEffect(() => {
-    setFormData({ ...settings });
+    setForm((prev) => (same(prev, lastSettings.current) ? settings : prev));
+    lastSettings.current = settings;
   }, [settings]);
-  const rules = formData.overtimeRules;
+
+  const dirty = !same(form, settings);
+
+  // Avisar antes de cerrar la pestaña con cambios sin guardar
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
+  const rules = form.overtimeRules;
+  const set = <K extends keyof CompanySettings>(key: K, value: CompanySettings[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
   const setRules = (partial: Partial<OvertimeRules>) =>
-    setFormData({ ...formData, overtimeRules: { ...formData.overtimeRules, ...partial } });
+    setForm((f) => ({ ...f, overtimeRules: { ...f.overtimeRules, ...partial } }));
+
+  const pctError = (v: number) =>
+    !Number.isFinite(v) || v < 0 || v > 500 ? 'Escribe un porcentaje entre 0 y 500.' : undefined;
+  const errors: Record<string, string | undefined> = {
+    companyName: !form.companyName.trim() ? 'Escribe el nombre de la empresa.' : undefined,
+    accountantName: !form.accountantName.trim() ? 'Escribe el nombre de quien recibe el reporte.' : undefined,
+    accountantEmail: !EMAIL_RE.test(form.accountantEmail.trim()) ? 'Escribe un correo válido.' : undefined,
+    managerName: !form.managerName.trim() ? 'Escribe el nombre de quien aprueba.' : undefined,
+    ...Object.fromEntries(PCT_FIELDS.map((f) => [f.key, pctError(rules[f.key])])),
+    shiftStart: !rules.shiftStart ? 'Indica la hora de ingreso.' : undefined,
+    nightStart: !rules.nightStart
+      ? 'Indica la hora.'
+      : rules.nightStart === rules.nightEnd
+        ? 'Inicio y fin no pueden ser iguales.'
+        : undefined,
+    nightEnd: !rules.nightEnd ? 'Indica la hora.' : undefined,
+  };
+  const hasErrors = Object.values(errors).some(Boolean);
+  const err = (key: string) => (submitted ? errors[key] : undefined);
+
+  const isLegalDefault = PCT_FIELDS.every((f) => rules[f.key] === DEFAULT_OVERTIME_RULES[f.key]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canEditSettings) return;
-    onSaveSettings(formData);
+    setSubmitted(true);
+    if (hasErrors) {
+      toast.error('Revisa los campos marcados en rojo.');
+      return;
+    }
+    onSaveSettings({
+      ...form,
+      companyName: form.companyName.trim(),
+      companyNIT: form.companyNIT.trim(),
+      accountantName: form.accountantName.trim(),
+      accountantEmail: form.accountantEmail.trim(),
+      managerName: form.managerName.trim(),
+      managerTitle: form.managerTitle.trim(),
+    });
+    setSubmitted(false);
+  };
+
+  const discard = () => {
+    setForm(settings);
+    setSubmitted(false);
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Banner */}
-      <div className="bg-white dark:bg-[#111111] rounded-[12px] p-6 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-card flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="caption-mono bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-[11px] px-2.5 py-0.5 rounded-[6px] border border-neutral-200 dark:border-neutral-700 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-300" />
-              Parámetros de Nómina
-            </span>
-          </div>
-          <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white mt-2 tracking-display-md">
-            Configuración de Empresa
-          </h2>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 font-sans">
-            Personaliza los datos de la empresa y correos que aparecerán en los reportes de Gmail para contabilidad.
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      {/* Encabezado */}
+      <section className="flex flex-col gap-1 rounded-xl border bg-card p-4 shadow-vercel-card sm:p-5">
+        <h2 className="text-lg font-semibold sm:text-xl">Configuración</h2>
+        <p className="text-sm text-muted-foreground">
+          Datos que aparecen en el reporte a contabilidad, recargos y horario de la empresa.
+        </p>
+        {!canEditSettings && (
+          <p className="mt-2 flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+            <Lock className="size-4 shrink-0" /> Solo lectura: la Jefa, el Contador o el Administrador pueden hacer
+            cambios.
           </p>
-        </div>
-      </div>
+        )}
+      </section>
 
-      {/* Read-only Alert for Non-Admin */}
-      {!canEditSettings && (
-        <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-[10px] text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2.5">
-          <Lock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-          <span>
-            <strong>Modo Solo Lectura:</strong> La modificación de datos fiscales, NIT y correos de contabilidad está reservada para la Jefa, el Contador o el Administrador.
-          </span>
-        </div>
-      )}
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-[#111111] rounded-[12px] border border-[#ebebeb] dark:border-[#262626] p-6 shadow-vercel-card space-y-6">
-        {/* Section 1: Company Details */}
-        <div className="space-y-4">
-          <h3 className="caption-mono text-xs text-neutral-500 dark:text-neutral-400 pb-2 border-b border-[#ebebeb] dark:border-[#262626] flex items-center gap-2 uppercase tracking-[0.06em]">
-            <Building2 className="w-3.5 h-3.5 text-neutral-400" />
-            1. Datos de la Empresa
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Nombre de la Empresa *</label>
+      <fieldset disabled={!canEditSettings} className="flex min-w-0 flex-col gap-4">
+        <Section id="empresa" title="Empresa" description="Aparece en el encabezado del correo y del Excel.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Razón social *" htmlFor="cfg-company" error={err('companyName')}>
               <Input
-                type="text"
-                required
-                value={formData.companyName}
-                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                className="w-full text-xs h-9 px-3"
+                id="cfg-company"
+                value={form.companyName}
+                onChange={(e) => set('companyName', e.target.value)}
+                aria-invalid={Boolean(err('companyName'))}
               />
-            </div>
-
-            <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">NIT / Identificación Fiscal</label>
+            </Field>
+            <Field label="NIT" htmlFor="cfg-nit">
               <Input
-                type="text"
-                value={formData.companyNIT}
-                onChange={(e) => setFormData({ ...formData, companyNIT: e.target.value })}
-                className="w-full text-xs h-9 px-3 font-mono"
+                id="cfg-nit"
+                className="font-mono"
+                value={form.companyNIT}
+                onChange={(e) => set('companyNIT', e.target.value)}
               />
-            </div>
+            </Field>
           </div>
-        </div>
+        </Section>
 
-        {/* Section 2: Accountant Details */}
-        <div className="space-y-4">
-          <h3 className="caption-mono text-xs text-neutral-500 dark:text-neutral-400 pb-2 border-b border-[#ebebeb] dark:border-[#262626] flex items-center gap-2 uppercase tracking-[0.06em]">
-            <Mail className="w-3.5 h-3.5 text-neutral-400" />
-            2. Datos del Contador (Destinatario del Correo)
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Nombre del Contador *</label>
+        <Section
+          id="contabilidad"
+          title="Contabilidad"
+          description="Quién recibe el reporte mensual. El botón “Abrir Gmail” usa este correo."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nombre *" htmlFor="cfg-acc-name" error={err('accountantName')}>
               <Input
-                type="text"
-                required
-                value={formData.accountantName}
-                onChange={(e) => setFormData({ ...formData, accountantName: e.target.value })}
-                className="w-full text-xs h-9 px-3"
+                id="cfg-acc-name"
+                value={form.accountantName}
+                onChange={(e) => set('accountantName', e.target.value)}
+                aria-invalid={Boolean(err('accountantName'))}
               />
-            </div>
-
-            <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Correo Electrónico (Gmail) *</label>
+            </Field>
+            <Field label="Correo *" htmlFor="cfg-acc-email" error={err('accountantEmail')}>
               <Input
+                id="cfg-acc-email"
                 type="email"
-                required
-                value={formData.accountantEmail}
-                onChange={(e) => setFormData({ ...formData, accountantEmail: e.target.value })}
-                className="w-full text-xs h-9 px-3 font-mono"
+                inputMode="email"
+                autoCapitalize="none"
+                className="font-mono"
+                value={form.accountantEmail}
+                onChange={(e) => set('accountantEmail', e.target.value)}
+                aria-invalid={Boolean(err('accountantEmail'))}
               />
-            </div>
+            </Field>
           </div>
-        </div>
+        </Section>
 
-        {/* Section 3: Manager Details */}
-        <div className="space-y-4">
-          <h3 className="caption-mono text-xs text-neutral-500 dark:text-neutral-400 pb-2 border-b border-[#ebebeb] dark:border-[#262626] flex items-center gap-2 uppercase tracking-[0.06em]">
-            <ShieldCheck className="w-3.5 h-3.5 text-neutral-400" />
-            3. Encargado de Marcar y Revisar Extras
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Nombre del Encargado *</label>
+        <Section
+          id="aprobacion"
+          title="Aprobación"
+          description="Quién revisa y aprueba las horas. Firma el correo y aparece como aprobador en el Excel."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nombre *" htmlFor="cfg-mgr-name" error={err('managerName')}>
               <Input
-                type="text"
-                required
-                value={formData.managerName}
-                onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
-                className="w-full text-xs h-9 px-3"
+                id="cfg-mgr-name"
+                value={form.managerName}
+                onChange={(e) => set('managerName', e.target.value)}
+                aria-invalid={Boolean(err('managerName'))}
               />
-            </div>
-
-            <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Cargo / Título del Encargado</label>
+            </Field>
+            <Field label="Cargo" htmlFor="cfg-mgr-title">
               <Input
-                type="text"
-                value={formData.managerTitle}
-                onChange={(e) => setFormData({ ...formData, managerTitle: e.target.value })}
-                className="w-full text-xs h-9 px-3"
+                id="cfg-mgr-title"
+                value={form.managerTitle}
+                onChange={(e) => set('managerTitle', e.target.value)}
               />
-            </div>
+            </Field>
           </div>
-        </div>
+        </Section>
 
-        {/* Section 4: Overtime rules */}
-        <div className="space-y-4">
-          <h3 className="caption-mono text-xs text-neutral-500 dark:text-neutral-400 pb-2 border-b border-[#ebebeb] dark:border-[#262626] flex items-center gap-2 uppercase tracking-[0.06em]">
-            <Percent className="w-3.5 h-3.5 text-neutral-400" />
-            4. Recargos y Jornada Laboral
-          </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400 font-sans">
-            Porcentaje de recargo sobre la hora ordinaria (25% = se paga 1,25 veces). Valores por defecto según Ley 2466 de 2025
-            (dominical 90% desde julio de 2026); ajústelos si la empresa liquida de otra forma. Los cambios aplican a todos los
-            cálculos y reportes, incluidos meses anteriores.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            {PCT_FIELDS.map((f) => (
-              <div key={f.key}>
-                <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
-                  {f.label} (%) <span className="text-neutral-400">· ley: {DEFAULT_OVERTIME_RULES[f.key] as number}%</span>
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={500}
-                  step="0.01"
-                  required
-                  disabled={!canEditSettings}
-                  value={rules[f.key] as number}
-                  onChange={(e) => setRules({ [f.key]: parseFloat(e.target.value) || 0 } as Partial<OvertimeRules>)}
-                  className="w-full text-xs h-9 px-3 font-mono"
-                />
-              </div>
-            ))}
-
+        <Section
+          id="recargos"
+          title="Recargos"
+          description={
+            <>
+              <p>
+                Porcentaje adicional sobre la hora ordinaria. Por defecto, Ley 2466 de 2025 (dominical 90% desde julio
+                de 2026).
+              </p>
+              <p className="mt-2 font-medium text-foreground">
+                Los cambios aplican solo a las horas que se registren desde ahora. Las ya registradas conservan su
+                recargo.
+              </p>
+            </>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            {PCT_FIELDS.map((f) => {
+              const v = rules[f.key];
+              const legal = DEFAULT_OVERTIME_RULES[f.key];
+              return (
+                <Field
+                  key={f.key}
+                  label={`${f.label} (%)`}
+                  htmlFor={`cfg-${f.key}`}
+                  error={err(f.key)}
+                  hint={`Se paga ×${Number.isFinite(v) ? (1 + v / 100).toLocaleString('es-CO') : '—'} la hora${v !== legal ? ` · ley: ${legal}%` : ''}`}
+                >
+                  <Input
+                    id={`cfg-${f.key}`}
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={500}
+                    step="0.01"
+                    className="font-mono"
+                    value={Number.isFinite(v) ? v : ''}
+                    onChange={(e) => setRules({ [f.key]: e.target.valueAsNumber } as Partial<OvertimeRules>)}
+                    aria-invalid={Boolean(err(f.key))}
+                  />
+                </Field>
+              );
+            })}
+          </div>
+          {canEditSettings && !isLegalDefault && (
             <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Inicio jornada nocturna</label>
-              <Input
-                type="time"
-                required
-                disabled={!canEditSettings}
-                value={rules.nightStart}
-                onChange={(e) => setRules({ nightStart: e.target.value })}
-                className="w-full text-xs h-9 px-3 font-mono"
-              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setRules(
+                    Object.fromEntries(
+                      PCT_FIELDS.map((f) => [f.key, DEFAULT_OVERTIME_RULES[f.key]])
+                    ) as Partial<OvertimeRules>
+                  )
+                }
+              >
+                <RotateCcw /> Restaurar recargos de ley
+              </Button>
             </div>
-            <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Fin jornada nocturna</label>
+          )}
+        </Section>
+
+        <Section
+          id="jornada"
+          title="Jornada"
+          description="Horario ordinario de la empresa. Al registrar horas se usa para calcular cuántas son diurnas, nocturnas o festivas. Domingos y festivos de Colombia se detectan solos."
+        >
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Ingreso habitual" htmlFor="cfg-shift-start" error={err('shiftStart')}>
               <Input
+                id="cfg-shift-start"
                 type="time"
-                required
-                disabled={!canEditSettings}
-                value={rules.nightEnd}
-                onChange={(e) => setRules({ nightEnd: e.target.value })}
-                className="w-full text-xs h-9 px-3 font-mono"
-              />
-            </div>
-            <div>
-              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Hora de ingreso habitual</label>
-              <Input
-                type="time"
-                required
-                disabled={!canEditSettings}
+                className="font-mono"
                 value={rules.shiftStart}
                 onChange={(e) => setRules({ shiftStart: e.target.value })}
-                className="w-full text-xs h-9 px-3 font-mono"
               />
-            </div>
+            </Field>
+            <Field label="Inicio nocturno" htmlFor="cfg-night-start" error={err('nightStart')}>
+              <Input
+                id="cfg-night-start"
+                type="time"
+                className="font-mono"
+                value={rules.nightStart}
+                onChange={(e) => setRules({ nightStart: e.target.value })}
+              />
+            </Field>
+            <Field label="Fin nocturno" htmlFor="cfg-night-end" error={err('nightEnd')}>
+              <Input
+                id="cfg-night-end"
+                type="time"
+                className="font-mono"
+                value={rules.nightEnd}
+                onChange={(e) => setRules({ nightEnd: e.target.value })}
+              />
+            </Field>
           </div>
 
-          <div className="space-y-2 text-xs">
-            <span className="caption-mono block text-neutral-600 dark:text-neutral-300">
-              Hora de salida ordinaria por día (vacío = sin jornada ese día: todo cuenta como extra)
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="flex flex-col gap-2">
+            <Label>Hora de salida por día</Label>
+            <p className="-mt-1 text-xs text-muted-foreground">
+              Déjala vacía si ese día no hay jornada: todo lo trabajado cuenta como extra.
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {WEEKDAYS.map((d) => (
-                <div key={d.key}>
-                  <label className="text-[11px] text-neutral-500 block mb-1">{d.label}</label>
+                <Field
+                  key={d.key}
+                  label={<span className="font-normal text-muted-foreground">{d.label}</span>}
+                  htmlFor={`cfg-end-${d.key}`}
+                >
                   <Input
+                    id={`cfg-end-${d.key}`}
                     type="time"
-                    disabled={!canEditSettings}
+                    className="font-mono"
                     value={rules.shiftEnds[d.key] || ''}
                     onChange={(e) => setRules({ shiftEnds: { ...rules.shiftEnds, [d.key]: e.target.value || null } })}
-                    className="w-full text-xs h-9 px-3 font-mono"
                   />
-                </div>
+                </Field>
               ))}
             </div>
-            <p className="text-[11px] text-neutral-400 font-sans">Domingos y festivos de Colombia se detectan automáticamente.</p>
           </div>
 
-          <label className="flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 font-sans">
+          <div className="flex items-start gap-2.5 rounded-lg border p-3">
             <Checkbox
-              disabled={!canEditSettings}
+              id="cfg-saturday"
+              className="mt-0.5"
               checked={rules.saturdayAsHoliday}
               onCheckedChange={(v) => setRules({ saturdayAsHoliday: v === true })}
             />
-            Pagar las horas del sábado con recargo dominical/festivo (no es obligatorio por ley)
-          </label>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-[#ebebeb] dark:border-[#262626]">
-          {canEditSettings ? (
-            <>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      title: '¿Restablecer valores predeterminados?',
-                      description: 'Se reemplazan los datos de la empresa y los recargos por los valores iniciales (Ley 2466).',
-                      confirmText: 'Restablecer',
-                      destructive: true,
-                    })
-                  )
-                    onResetDefaults();
-                }}
-                className="text-xs text-neutral-400 hover:text-red-500 font-medium flex items-center gap-1.5 transition font-sans"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Restablecer Valores Predeterminados</span>
-              </button>
-
-              <Button
-                type="submit"
-                className="px-5 py-2 text-xs font-medium flex items-center gap-2"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>Guardar Configuración</span>
-              </Button>
-            </>
-          ) : (
-            <div className="text-xs text-neutral-400 italic font-mono-tech">
-              [Edición bloqueada para tu rol actual]
+            <div>
+              <Label htmlFor="cfg-saturday">Pagar el sábado como dominical / festivo</Label>
+              <p className="text-xs text-muted-foreground">
+                No es obligatorio por ley; actívalo solo si la empresa lo acordó así.
+              </p>
             </div>
-          )}
+          </div>
+        </Section>
+      </fieldset>
+
+      {/* Barra de guardado: aparece solo con cambios pendientes */}
+      {canEditSettings && dirty && (
+        <div className="sticky bottom-3 z-20 flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-vercel-modal sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium">Tienes cambios sin guardar</p>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={discard}>
+              Descartar
+            </Button>
+            <Button type="submit" className="flex-1 sm:flex-none">
+              <Save /> Guardar cambios
+            </Button>
+          </div>
         </div>
-      </form>
-    </div>
+      )}
+    </form>
   );
-};
+}
