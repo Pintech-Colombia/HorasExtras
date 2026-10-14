@@ -15,13 +15,6 @@ const esc = (v: unknown) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-// Celda CSV segura: comillas escapadas y sin fórmulas (=, +, -, @) que Excel ejecutaría
-const csvCell = (v: unknown) => {
-  let text = String(v ?? '');
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return `"${text.replace(/"/g, '""')}"`;
-};
-
 // Etiqueta corta de cada tipo con el porcentaje vigente, p. ej. "Ex. Diurna (25%)"
 const shortLabel = (t: OvertimeType) => {
   const pct = Number(((OVERTIME_TYPES[t].multiplier - 1) * 100).toFixed(2));
@@ -37,61 +30,6 @@ const shortLabel = (t: OvertimeType) => {
 // Formatter for currency
 export const formatCurrency = (amount: number, symbol = '$') => {
   return `${symbol} ${amount.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-};
-
-// Export to CSV for Accountant
-export const exportToCSV = (
-  records: OvertimeRecord[],
-  employeesMap: Map<string, Employee>,
-  monthYearStr: string,
-  companyName: string
-) => {
-  const headers = [
-    'ID Registro',
-    'Fecha',
-    'Cédula / Documento',
-    'Nombre Empleado',
-    'Cargo',
-    'Horas',
-    'Tipo de Horas Extra',
-    'Recargo / Multiplicador',
-    'Estado Verificación',
-    'Observaciones / Motivo',
-  ];
-
-  const rows = records.map((rec) => {
-    const emp = employeesMap.get(rec.employeeId);
-    const typeInfo = OVERTIME_TYPES[rec.type];
-    return [
-      rec.id,
-      rec.date,
-      csvCell(emp ? emp.documentId : 'N/A'),
-      csvCell(rec.employeeName),
-      csvCell(emp?.position || 'Operativo'),
-      rec.hours,
-      csvCell(typeInfo?.label || rec.type),
-      `${Number((((rec.customMultiplier || typeInfo?.multiplier || 1) - 1) * 100).toFixed(2))}% recargo (${Number((rec.customMultiplier || typeInfo?.multiplier || 1).toFixed(4))}x)`,
-      rec.status === 'sent_accountant' ? 'Enviado a Contabilidad' : rec.verifiedByManager ? 'Verificado por Encargado' : 'Pendiente Revisión',
-      csvCell(rec.notes || ''),
-    ];
-  });
-
-  const csvContent = [
-    `# Reporte de Horas Extras - ${companyName} - Mes: ${monthYearStr}`,
-    headers.join(','),
-    ...rows.map((e) => e.join(',')),
-  ].join('\n');
-
-  // Blob en lugar de enlace data: (el carácter # del encabezado cortaba el archivo)
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `Horas_Extras_${companyName.replace(/\s+/g, '_')}_${monthYearStr}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 };
 
 // Build Formatted Email Text for Gmail
