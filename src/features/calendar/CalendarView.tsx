@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, Clock, Filter, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Info } from 'lucide-react';
-import { OvertimeRecord, Employee, OVERTIME_TYPES, UserRole, OvertimeRules } from '../types';
-import { formatHoursDisplay, formatTime12h } from '../utils/schedule';
-import { getHolidayName } from '../utils/holidays';
+import { OvertimeRecord, Employee, OVERTIME_TYPES, UserRole, OvertimeRules } from '@/types';
+import { formatHoursDisplay, formatTime12h } from '@/lib/schedule';
+import { getHolidayName } from '@/lib/holidays';
 import { useConfirm } from '@/components/ui/confirm';
 
 interface CalendarViewProps {

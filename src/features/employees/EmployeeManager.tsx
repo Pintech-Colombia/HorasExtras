@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Users, UserPlus, Edit, Trash2, Search, DollarSign, Building, FileText, Upload, Download, CheckCircle2, X } from 'lucide-react';
-import { Employee, UserRole } from '../types';
-import { formatCurrency } from '../utils/exporters';
+import { Employee, UserRole } from '@/types';
+import { formatCurrency } from '@/lib/exporters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';

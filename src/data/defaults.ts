@@ -1,4 +1,4 @@
-import { CompanySettings, DEFAULT_OVERTIME_RULES } from '../types';
+import { CompanySettings, DEFAULT_OVERTIME_RULES } from '@/types';
 
 export const INITIAL_SETTINGS: CompanySettings = {
   companyName: 'Pintech Colombia S.A.S.',

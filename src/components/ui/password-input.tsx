@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Input } from './input';
+import { Input } from '@/components/ui/input';
 
 // Campo de contraseña con botón para mostrar/ocultar lo escrito
 function PasswordInput({ className, ...props }: Omit<React.ComponentProps<'input'>, 'type'>) {

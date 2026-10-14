@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, ArrowRight, Check, Circle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { PintechLogo } from './PintechLogo';
+import { supabase } from '@/lib/supabase';
+import { PintechLogo } from '@/components/layout/PintechLogo';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';

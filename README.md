@@ -30,36 +30,31 @@ Diseñado con una arquitectura moderna desacoplada: **Frontend en React 19**, **
 ## 📁 Estructura del Proyecto
 
 ```text
-├── public/                     # Archivos estáticos públicos
-├── src/
-│   ├── components/             # Componentes de la interfaz de usuario
-│   │   ├── AddOvertimeModal.tsx# Modal de registro con cálculo automático
-│   │   ├── CalendarView.tsx    # Vista de calendario mensual interactivo
-│   │   ├── CompanySettingsView.tsx # Datos fiscales de empresa y contactos
-│   │   ├── EmployeeManager.tsx # Gestión de empleados, cédulas y tarifas
-│   │   ├── GmailReportBuilder.tsx # Diseñador de correos y exportador
-│   │   ├── ManagerReviewView.tsx  # Panel de auditoría del encargado
-│   │   └── Navbar.tsx          # Barra superior con estado de sincronización
-│   ├── data/                   # Valores por defecto y datos demo (solo desarrollo)
-│   ├── lib/
-│   │   └── supabase.ts         # Cliente singleton y detector de conexión
-│   ├── services/               # Capa de acceso a datos asíncrona
-│   │   ├── companyService.ts   # Configuración de empresa
-│   │   ├── employeesService.ts # CRUD de empleados
-│   │   └── recordsService.ts   # CRUD y conciliación de horas extras
-│   ├── utils/
-│   │   ├── exporters.ts        # Generador de tablas HTML para Gmail y CSV
-│   │   ├── schedule.ts         # Reglas de jornada laboral y cálculos
-│   │   ├── holidays.ts         # Festivos de Colombia (Ley Emiliani)
-│   │   └── storage.ts          # Persistencia local del modo demo (solo desarrollo)
-│   ├── App.tsx                 # Componente principal y gestor de estado
-│   ├── index.css               # Estilos globales con Tailwind CSS v4
-│   └── main.tsx                # Entrada React
-├── supabase/
-│   └── schema.sql              # Script DDL de PostgreSQL con RLS y triggers
-├── vercel.json                 # Configuración de enrutamiento SPA para Vercel
-└── package.json                # Dependencias y scripts de construcción
+src/
+├── app/providers.tsx        # Proveedores globales: rutas, datos (TanStack Query), tema, sesión, avisos
+├── App.tsx                  # Rutas: /calendario, /auditoria, /reporte, /empleados, /configuracion
+├── components/
+│   ├── ui/                  # Componentes estándar (shadcn/ui): Button, Input, Dialog...
+│   └── layout/              # Estructura: AppLayout, Navbar, ThemeProvider, logo
+├── features/                # Una carpeta por área de negocio
+│   ├── auth/                # Sesión (AuthProvider), permisos por rol, login, crear contraseña
+│   ├── calendar/            # Calendario mensual
+│   ├── records/             # Registro de horas: api.ts (Supabase), queries.ts (hooks), ventana de registro
+│   ├── review/              # Auditoría de la Jefa
+│   ├── report/              # Correo al contador, Excel y cierre de mes
+│   ├── employees/           # Empleados y valor hora
+│   └── settings/            # Datos de empresa, recargos y jornada
+├── hooks/                   # Hooks compartidos (mes seleccionado en la URL)
+├── lib/                     # Lógica pura con pruebas: horario, festivos, exportación; cliente Supabase
+├── data/                    # Valores por defecto y datos demo (solo desarrollo)
+└── types.ts                 # Tipos y reglas de recargo
+supabase/                    # schema.sql, migraciones
+.github/workflows/           # CI (chequeos en cada PR) y mantenimiento diario de la base
 ```
+
+**Patrón de cada área:** `api.ts` habla con Supabase → `queries.ts` expone hooks de TanStack Query
+(`useMonthRecords`, `useUpdateRecord`...) → `XxxPage.tsx` conecta los hooks con la vista → la vista solo dibuja.
+Los avisos de error de cualquier guardado se muestran automáticamente (`lib/queryClient.ts`).
 
 ---
 

@@ -1,6 +1,6 @@
 // DATOS FICTICIOS SOLO PARA DESARROLLO LOCAL (npm run dev sin Supabase).
 // Nunca se usan en producción: storage.ts solo los carga cuando import.meta.env.DEV es true.
-import { Employee, OvertimeRecord } from '../types';
+import { Employee, OvertimeRecord } from '@/types';
 
 export const DEMO_EMPLOYEES: Employee[] = [
   {

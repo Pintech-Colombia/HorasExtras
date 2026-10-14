@@ -1,507 +1,65 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Employee, OvertimeRecord, CompanySettings, UserProfile, UserRole, applyOvertimeRules } from './types';
-import { getEmployees, createEmployee, createMultipleEmployees, updateEmployee, deleteEmployee } from './services/employeesService';
-import { getRecords, createRecords, updateRecord, deleteRecord, verifyAllMonthRecords, markMonthSent } from './services/recordsService';
-import { getCompanySettings, updateCompanySettings } from './services/companyService';
-import { INITIAL_SETTINGS } from './data/defaults';
-import { supabase, isSupabaseConfigured } from './lib/supabase';
-import { Navbar } from './components/Navbar';
-import { CalendarView } from './components/CalendarView';
-import { ManagerReviewView } from './components/ManagerReviewView';
-import { GmailReportBuilder } from './components/GmailReportBuilder';
-import { EmployeeManager } from './components/EmployeeManager';
-import { CompanySettingsView } from './components/CompanySettingsView';
-import { AddOvertimeModal } from './components/AddOvertimeModal';
-import { LoginScreen } from './components/LoginScreen';
-import { PintechLogo } from './components/PintechLogo';
-import { SetPasswordScreen } from './components/SetPasswordScreen';
-import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
+import { Navigate, Route, Routes } from 'react-router';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { FullScreenMessage } from '@/components/layout/FullScreenMessage';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { LoginScreen } from '@/features/auth/LoginScreen';
+import { RequireOffice } from '@/features/auth/RequireOffice';
+import { SetPasswordScreen } from '@/features/auth/SetPasswordScreen';
+import { CalendarPage } from '@/features/calendar/CalendarPage';
+import { EmployeesPage } from '@/features/employees/EmployeesPage';
+import { RecordDialogProvider } from '@/features/records/RecordDialogProvider';
+import { ReportPage } from '@/features/report/ReportPage';
+import { ReviewPage } from '@/features/review/ReviewPage';
+import { SettingsPage } from '@/features/settings/SettingsPage';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export default function App() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [records, setRecords] = useState<OvertimeRecord[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
-  const [session, setSession] = useState<any>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [activeRole, setActiveRole] = useState<UserRole>('manager');
-  // Modo demostración: solo en desarrollo local y sin Supabase configurado
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  // true cuando el usuario llega desde el correo de "Olvidé mi contraseña"
-  const [isRecovery, setIsRecovery] = useState<boolean>(false);
-
-  const [settings, setSettings] = useState<CompanySettings>(INITIAL_SETTINGS);
-
-  // Las etiquetas y multiplicadores de recargos siguen la configuración de la empresa
-  applyOvertimeRules(settings.overtimeRules);
-
-  // Current Month selector YYYY-MM
-  const today = new Date();
-  const defaultMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonthStr);
-
-  // Active Tab
-  const [currentTab, setCurrentTab] = useState<'calendar' | 'review' | 'gmail' | 'employees' | 'settings'>('calendar');
-
-  // Aplica el rol y regresa al calendario si la pestaña actual no está permitida
-  const applyRole = (newRole: UserRole) => {
-    setActiveRole(newRole);
-    if (newRole === 'supervisor') {
-      setCurrentTab('calendar');
-    }
-  };
-
-  // Permisos de interfaz (la base de datos aplica las mismas reglas)
-  const canRegister = activeRole === 'supervisor' || activeRole === 'manager' || activeRole === 'admin';
-  const canApprove = activeRole === 'manager' || activeRole === 'admin';
-  const isOffice = activeRole !== 'supervisor'; // Jefa, Contador y Admin
-
-  // Add Overtime Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalInitialDate, setModalInitialDate] = useState<string | undefined>(undefined);
-
-  // Dark mode state
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('theme_mode');
-    if (saved) return saved === 'dark';
-    return false;
-  });
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      document.body.classList.add('dark');
-      localStorage.setItem('theme_mode', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.body.classList.remove('dark');
-      localStorage.setItem('theme_mode', 'light');
-    }
-  }, [isDarkMode]);
-
-  const handleToggleTheme = () => {
-    setIsDarkMode((prev) => !prev);
-  };
-
-  // Helper para consultar perfil del usuario desde Supabase
-  const fetchUserProfile = async (authUser: any) => {
-    if (!supabase) return;
-    try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .maybeSingle();
-
-      // El rol SOLO se toma de la base de datos; sin perfil se trata como supervisor (mínimo privilegio)
-      const role: UserRole = (data?.role as UserRole) || 'supervisor';
-      setUserProfile({
-        id: authUser.id,
-        email: data?.email || authUser.email || '',
-        fullName: data?.full_name || authUser.email?.split('@')[0] || 'Usuario',
-        role,
-        companyId: data?.company_id,
-        mustChangePassword: Boolean(data?.must_change_password),
-      });
-      applyRole(role);
-    } catch (err) {
-      if (import.meta.env.DEV) {
-        console.error('Error al cargar perfil de usuario:', err);
-      }
-      applyRole('supervisor');
-    }
-  };
-
-  // Ejecuta una operación contra el servidor; si falla, muestra el error y recarga el estado real
-  const runAction = async (action: () => Promise<void>, successMsg?: string) => {
-    try {
-      await action();
-      if (successMsg) toast.success(successMsg);
-    } catch (err: any) {
-      toast.error(err?.message || 'Ocurrió un error inesperado. Intente de nuevo.');
-      loadData();
-    }
-  };
-
-  // Carga los datos del mes seleccionado (las tarifas solo si el rol puede verlas)
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setLoadError(null);
-    try {
-      const [fetchedEmployees, fetchedRecords, fetchedSettings] = await Promise.all([
-        getEmployees(activeRole !== 'supervisor'),
-        getRecords(selectedMonth),
-        getCompanySettings(),
-      ]);
-      setEmployees(fetchedEmployees);
-      setRecords(fetchedRecords);
-      setSettings(fetchedSettings);
-    } catch (error: any) {
-      setLoadError(error?.message || 'No se pudieron cargar los datos.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeRole, selectedMonth]);
-
-  // Escuchar sesión de Supabase Auth
-  useEffect(() => {
-    if (supabase) {
-      supabase.auth.getSession().then(async ({ data: { session } }) => {
-        setSession(session);
-        if (session?.user) {
-          await fetchUserProfile(session.user);
-        }
-        setIsAuthChecking(false);
-      });
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        setSession(session);
-        if (event === 'PASSWORD_RECOVERY') setIsRecovery(true);
-        if (session?.user) {
-          await fetchUserProfile(session.user);
-        } else {
-          setUserProfile(null);
-          setEmployees([]);
-          setRecords([]);
-        }
-      });
-
-      return () => subscription.unsubscribe();
-    } else {
-      setIsAuthChecking(false);
-    }
-  }, []);
-
-  // Recarga cuando cambia el usuario, su rol o el mes
-  const sessionUserId = session?.user?.id;
-  useEffect(() => {
-    if ((sessionUserId && userProfile) || isDemoMode) loadData();
-  }, [loadData, sessionUserId, userProfile?.id, isDemoMode]);
-
-  const handleSignOut = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
-      setSession(null);
-      setUserProfile(null);
-      setEmployees([]);
-      setRecords([]);
-    }
-  };
-
-  // Handlers de Registro de Horas Extras
-  const handleOpenModalForDate = (dateStr: string) => {
-    setModalInitialDate(dateStr);
-    setIsModalOpen(true);
-  };
-
-  const handleOpenModalGeneral = () => {
-    setModalInitialDate(undefined);
-    setIsModalOpen(true);
-  };
-
-  const handleSaveNewRecords = async (newRecordsData: Omit<OvertimeRecord, 'id' | 'createdAt'>[]): Promise<boolean> => {
-    try {
-      const created = await createRecords(newRecordsData);
-      setRecords((prev) => [...created, ...prev]);
-      toast.success(created.length === 1 ? 'Registro guardado' : `${created.length} registros guardados`);
-      return true;
-    } catch (err: any) {
-      toast.error(err?.message || 'No se pudieron guardar las horas extras.');
-      return false;
-    }
-  };
-
-  const handleToggleVerifyRecord = async (id: string) => {
-    const target = records.find((r) => r.id === id);
-    if (!target) return;
-
-    const nextVerified = !target.verifiedByManager;
-    const partial: Partial<OvertimeRecord> = {
-      verifiedByManager: nextVerified,
-      status: nextVerified ? 'verified_manager' : 'pending_review',
-      verifiedAt: nextVerified ? new Date().toISOString() : undefined,
-    };
-
-    setRecords((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...partial } : r))
-    );
-
-    await runAction(() => updateRecord(id, partial).then(() => undefined));
-  };
-
-  const handleVerifyAllMonth = async () => {
-    const now = new Date().toISOString();
-    setRecords((prev) =>
-      prev.map((r) => {
-        if (r.date.startsWith(selectedMonth) && !r.verifiedByManager) {
-          return {
-            ...r,
-            verifiedByManager: true,
-            status: 'verified_manager',
-            verifiedAt: now,
-          };
-        }
-        return r;
-      })
-    );
-
-    await runAction(() => verifyAllMonthRecords(selectedMonth), 'Registros del mes aprobados');
-  };
-
-  // Marca el mes como enviado a contabilidad (bloquea los registros aprobados)
-  const handleMarkMonthSent = async (): Promise<number | null> => {
-    try {
-      const count = await markMonthSent(selectedMonth);
-      await loadData();
-      toast.success(`${count} registro(s) marcados como enviados y bloqueados`);
-      return count;
-    } catch (err: any) {
-      toast.error(err?.message || 'No se pudo marcar el mes como enviado.');
-      return null;
-    }
-  };
-
-  const handleDeleteRecord = async (id: string) => {
-    setRecords((prev) => prev.filter((r) => r.id !== id));
-    await runAction(() => deleteRecord(id), 'Registro eliminado');
-  };
-
-  const handleUpdateRecord = async (id: string, partial: Partial<OvertimeRecord>) => {
-    setRecords((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...partial } : r))
-    );
-    await runAction(() => updateRecord(id, partial).then(() => undefined));
-  };
-
-  // Handlers de Empleados
-  const handleAddEmployee = async (newEmp: Omit<Employee, 'id'>) => {
-    await runAction(async () => {
-      const created = await createEmployee(newEmp);
-      setEmployees((prev) => [...prev, created]);
-    }, 'Empleado creado');
-  };
-
-  const handleAddMultipleEmployees = async (newEmps: Omit<Employee, 'id'>[]): Promise<boolean> => {
-    try {
-      const createdList = await createMultipleEmployees(newEmps);
-      setEmployees((prev) => [...createdList, ...prev]);
-      toast.success(`${createdList.length} empleado(s) importados`);
-      return true;
-    } catch (err: any) {
-      toast.error(err?.message || 'No se pudieron importar los empleados.');
-      return false;
-    }
-  };
-
-  const handleUpdateEmployee = async (id: string, partial: Partial<Employee>) => {
-    setEmployees((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, ...partial } : e))
-    );
-    await runAction(() => updateEmployee(id, partial), 'Empleado actualizado');
-  };
-
-  const handleDeleteEmployee = async (id: string) => {
-    setEmployees((prev) => prev.filter((e) => e.id !== id));
-    await runAction(() => deleteEmployee(id), 'Empleado eliminado');
-  };
-
-  // Configuración de la Empresa
-  const handleUpdateSettings = async (newSettings: CompanySettings) => {
-    setSettings(newSettings);
-    await runAction(() => updateCompanySettings(newSettings), 'Configuración guardada');
-  };
-
-  // La confirmación se pide en la pantalla de Configuración
-  const handleResetDefaults = () => handleUpdateSettings(INITIAL_SETTINGS);
-
-  // Se trabaja mes a mes (los registros ya vienen cargados solo del mes seleccionado)
-  const monthRecords = records.filter((r) => r.date.startsWith(selectedMonth));
-
-  const pendingCount = monthRecords.filter((r) => !r.verifiedByManager).length;
-  const verifiedCount = monthRecords.filter((r) => r.verifiedByManager).length;
-
-  // Pantalla de Carga de Autenticación
-  if (isAuthChecking) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute w-96 h-96 bg-vercel-mesh opacity-15 blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col items-center">
-          <PintechLogo size="lg" showSubtitle={false} />
-          <div className="mt-8 flex items-center gap-2 caption-mono text-neutral-400 text-xs animate-pulse">
-            <span>Sincronizando credenciales de seguridad...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const { status, session, isRecovery, enterDemo, refreshProfile, signOut } = useAuth();
 
   // Producción sin Supabase configurado: no se permite operar con datos locales
   if (!isSupabaseConfigured() && !import.meta.env.DEV) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
-        <PintechLogo size="lg" showSubtitle={false} />
-        <p className="mt-8 text-sm text-neutral-300 max-w-md">
-          La aplicación no está conectada a la base de datos. El administrador debe configurar
-          VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel y volver a desplegar.
-        </p>
-      </div>
+      <FullScreenMessage>
+        La aplicación no está conectada a la base de datos. El administrador debe configurar VITE_SUPABASE_URL y
+        VITE_SUPABASE_ANON_KEY en Vercel y volver a desplegar.
+      </FullScreenMessage>
     );
   }
 
-  // Auth Gate: sin sesión se muestra el login (el modo demo solo existe en desarrollo sin Supabase)
-  if (!session && !isDemoMode) {
-    return (
-      <LoginScreen
-        onContinueOffline={
-          import.meta.env.DEV && !isSupabaseConfigured()
-            ? () => {
-                setIsDemoMode(true);
-                applyRole('admin');
-              }
-            : undefined
-        }
-      />
-    );
+  if (status === 'loading') {
+    return <FullScreenMessage pulse>Sincronizando credenciales de seguridad...</FullScreenMessage>;
+  }
+
+  if (status === 'signedOut') {
+    return <LoginScreen onContinueOffline={enterDemo} />;
   }
 
   // Contraseña propia obligatoria: primer ingreso o enlace de recuperación
-  if (session && (isRecovery || userProfile?.mustChangePassword)) {
+  if (status === 'mustSetPassword') {
     return (
       <SetPasswordScreen
-        email={session.user?.email}
+        email={session?.user?.email}
         isRecovery={isRecovery}
-        onSignOut={handleSignOut}
-        onDone={async () => {
-          setIsRecovery(false);
-          await fetchUserProfile(session.user);
-        }}
+        onSignOut={signOut}
+        onDone={refreshProfile}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] text-[#171717] dark:text-neutral-100 font-sans antialiased selection:bg-[#171717] selection:text-white dark:selection:bg-white dark:selection:text-[#171717] pb-16">
-      {/* Navbar con marca Pintech, selector de quincena y estado de sesión */}
-      <Navbar
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-        selectedMonth={selectedMonth}
-        setSelectedMonth={setSelectedMonth}
-        pendingCount={pendingCount}
-        verifiedCount={verifiedCount}
-        settings={settings}
-        onOpenNewRecordModal={handleOpenModalGeneral}
-        isDarkMode={isDarkMode}
-        onToggleTheme={handleToggleTheme}
-        userEmail={session?.user?.email || (isDemoMode ? 'Modo Local' : null)}
-        userName={userProfile?.fullName || null}
-        userRole={activeRole}
-        onRoleSwitch={isDemoMode ? applyRole : undefined}
-        canRegister={canRegister}
-        onOpenAuth={() => setIsDemoMode(false)}
-        onSignOut={handleSignOut}
-      />
-
-      {/* Main View Container con Guardias de Seguridad por Rol */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {loadError && (
-          <div className="mb-4 flex items-start justify-between gap-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-[8px] text-xs text-red-800 dark:text-red-200">
-            <span>{loadError}</span>
-            <button onClick={loadData} className="font-semibold underline shrink-0">
-              Reintentar
-            </button>
-          </div>
-        )}
-
-        {isLoading && (
-          <div className="mb-4 flex items-center justify-center p-3 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] caption-mono text-xs text-neutral-500 dark:text-neutral-400 shadow-vercel-subtle animate-pulse">
-            Sincronizando registros de nómina...
-          </div>
-        )}
-
-        {/* 1. Calendario: Accesible por todos los roles */}
-        {currentTab === 'calendar' && (
-          <CalendarView
-            selectedMonth={selectedMonth}
-            setSelectedMonth={setSelectedMonth}
-            records={records}
-            employees={employees}
-            userRole={activeRole}
-            onAddForDate={handleOpenModalForDate}
-            onDeleteRecord={handleDeleteRecord}
-            onToggleVerifyRecord={handleToggleVerifyRecord}
-            currentUserId={userProfile?.id}
-            rules={settings.overtimeRules}
-            canRegister={canRegister}
-          />
-        )}
-
-        {/* 2. Auditoría: Accesible por Jefa y Contador */}
-        {currentTab === 'review' && isOffice && (
-          <ManagerReviewView
-            records={monthRecords}
-            employees={employees}
-            settings={settings}
-            selectedMonth={selectedMonth}
-            userRole={activeRole}
-            onToggleVerify={handleToggleVerifyRecord}
-            onVerifyAllMonth={handleVerifyAllMonth}
-            onDeleteRecord={handleDeleteRecord}
-            onUpdateRecord={handleUpdateRecord}
-            onGoToGmailReport={() => setCurrentTab('gmail')}
-          />
-        )}
-
-        {/* 3. Formato Gmail & Nómina: Accesible por Jefa y Contador */}
-        {currentTab === 'gmail' && isOffice && (
-          <GmailReportBuilder
-            records={monthRecords}
-            employees={employees}
-            settings={settings}
-            selectedMonth={selectedMonth}
-            onMarkMonthSent={handleMarkMonthSent}
-          />
-        )}
-
-        {/* 4. Personal de Planta: Accesible por Jefa y Contador */}
-        {currentTab === 'employees' && isOffice && (
-          <EmployeeManager
-            employees={employees}
-            userRole={activeRole}
-            onAddEmployee={handleAddEmployee}
-            onAddMultipleEmployees={handleAddMultipleEmployees}
-            onUpdateEmployee={handleUpdateEmployee}
-            onDeleteEmployee={handleDeleteEmployee}
-          />
-        )}
-
-        {/* 5. Configuración: Jefa, Contador y Administrador */}
-        {currentTab === 'settings' && isOffice && (
-          <CompanySettingsView
-            settings={settings}
-            userRole={activeRole}
-            onSaveSettings={handleUpdateSettings}
-            onResetDefaults={handleResetDefaults}
-          />
-        )}
-      </main>
-
-      <Toaster theme={isDarkMode ? 'dark' : 'light'} />
-
-      {/* Modal de Registro de Horas Extras */}
-      <AddOvertimeModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        employees={employees.filter((e) => e.active)}
-        initialDate={modalInitialDate}
-        onSaveRecords={handleSaveNewRecords}
-        rules={settings.overtimeRules}
-        canVerify={canApprove}
-        existingRecords={monthRecords}
-      />
-
-    </div>
+    <RecordDialogProvider>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/calendario" element={<CalendarPage />} />
+          <Route element={<RequireOffice />}>
+            <Route path="/auditoria" element={<ReviewPage />} />
+            <Route path="/reporte" element={<ReportPage />} />
+            <Route path="/empleados" element={<EmployeesPage />} />
+            <Route path="/configuracion" element={<SettingsPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/calendario" replace />} />
+        </Route>
+      </Routes>
+    </RecordDialogProvider>
   );
 }

@@ -1,8 +1,8 @@
 // Almacenamiento local SOLO para el modo demostración de desarrollo (sin Supabase).
 // En producción la app trabaja exclusivamente contra Supabase y nunca usa estos datos.
-import { Employee, OvertimeRecord, CompanySettings, normalizeOvertimeRules } from '../types';
-import { INITIAL_SETTINGS } from '../data/defaults';
-import { DEMO_EMPLOYEES, getDemoRecords } from '../data/demoData';
+import { Employee, OvertimeRecord, CompanySettings, normalizeOvertimeRules } from '@/types';
+import { INITIAL_SETTINGS } from '@/data/defaults';
+import { DEMO_EMPLOYEES, getDemoRecords } from '@/data/demoData';
 
 const KEYS = {
   EMPLOYEES: 'he_app_employees_v1',

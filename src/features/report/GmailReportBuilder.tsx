@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Mail, Copy, Check, ExternalLink, Download, Lock, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { OvertimeRecord, Employee, CompanySettings } from '../types';
-import { buildGmailFormattedText, copyRichHtmlToClipboard, exportToCSV, getGmailWebUrl, formatCurrency, calculateRecordCost } from '../utils/exporters';
-import { formatHoursDisplay } from '../utils/schedule';
+import { OvertimeRecord, Employee, CompanySettings } from '@/types';
+import { buildGmailFormattedText, copyRichHtmlToClipboard, exportToCSV, getGmailWebUrl, formatCurrency, calculateRecordCost } from '@/lib/exporters';
+import { formatHoursDisplay } from '@/lib/schedule';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
 

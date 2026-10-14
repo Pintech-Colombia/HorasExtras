@@ -27,8 +27,8 @@ export default tseslint.config(
     },
   },
   {
-    // Los componentes de shadcn/ui exportan también sus variantes (patrón estándar)
-    files: ['src/components/ui/**'],
+    // shadcn/ui exporta variantes y los proveedores exportan su hook (patrones estándar)
+    files: ['src/components/ui/**', 'src/**/*Provider.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   }
 );

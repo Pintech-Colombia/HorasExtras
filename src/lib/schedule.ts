@@ -1,5 +1,5 @@
-import { OvertimeRules, OvertimeType, DEFAULT_OVERTIME_RULES } from '../types';
-import { getHolidayName } from './holidays';
+import { OvertimeRules, OvertimeType, DEFAULT_OVERTIME_RULES } from '@/types';
+import { getHolidayName } from '@/lib/holidays';
 
 export interface ScheduleInfo {
   dayName: string;

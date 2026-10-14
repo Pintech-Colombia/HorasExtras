@@ -1,8 +1,8 @@
-import { supabase } from '../lib/supabase';
-import { CompanySettings, normalizeOvertimeRules } from '../types';
-import { INITIAL_SETTINGS } from '../data/defaults';
-import { loadSettings, saveSettings } from '../utils/storage';
-import { fail } from './errors';
+import { supabase } from '@/lib/supabase';
+import { CompanySettings, normalizeOvertimeRules } from '@/types';
+import { INITIAL_SETTINGS } from '@/data/defaults';
+import { loadSettings, saveSettings } from '@/lib/storage';
+import { fail } from '@/lib/errors';
 
 export const getCompanySettings = async (): Promise<CompanySettings> => {
   if (!supabase) return loadSettings();

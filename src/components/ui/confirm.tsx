@@ -8,7 +8,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from './alert-dialog';
+} from '@/components/ui/alert-dialog';
 
 export interface ConfirmOptions {
   title: string;

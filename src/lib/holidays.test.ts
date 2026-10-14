@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getColombianHolidays, getHolidayName } from './holidays';
+import { getColombianHolidays, getHolidayName } from '@/lib/holidays';
 
 describe('festivos de Colombia', () => {
   it('2026 coincide con el calendario oficial (18 festivos)', () => {

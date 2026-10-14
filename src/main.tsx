@@ -1,13 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import { ConfirmProvider } from '@/components/ui/confirm';
+import { AppProviders } from '@/app/providers';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfirmProvider>
+    <AppProviders>
       <App />
-    </ConfirmProvider>
+    </AppProviders>
   </StrictMode>
 );
