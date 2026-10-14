@@ -98,8 +98,9 @@ Abre tu navegador en `http://localhost:3000` (o el puerto indicado en la consola
 > El esquema **no contiene datos de prueba**. Solo crea tablas, reglas de seguridad y la ficha de la empresa.
 > Verifique el NIT y el correo del contador al final de `supabase/schema.sql` antes de ejecutarlo.
 
-> **¿Ya tiene la base funcionando con la versión anterior (v2)?** Ejecute [`supabase/migration_v3.sql`](./supabase/migration_v3.sql)
-> y luego `schema.sql` completo otra vez. No borra datos.
+> **¿Ya tiene la base funcionando con una versión anterior?** Ejecute las migraciones que falten, en orden:
+> [`migration_v3.sql`](./supabase/migration_v3.sql) y luego `schema.sql` completo (v2→v3); después
+> [`migration_v5.sql`](./supabase/migration_v5.sql) (endurecimiento de seguridad). Ninguna borra datos.
 
 1. Cree un proyecto en [Supabase](https://supabase.com) (plan gratuito). Use un proyecto **separado** para pruebas.
    - **Si reanuda un proyecto pausado** con la versión anterior: descargue un respaldo y ejecute primero
