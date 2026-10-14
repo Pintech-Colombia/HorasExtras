@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Dialog as SheetPrimitive } from 'radix-ui';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { touchSafeOpenAutoFocus } from '@/components/ui/dialog';
 
 const Sheet = SheetPrimitive.Root;
 const SheetClose = SheetPrimitive.Close;
@@ -11,6 +12,7 @@ function SheetContent({
   className,
   children,
   side = 'right',
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & { side?: 'right' | 'bottom' }) {
   return (
@@ -24,6 +26,7 @@ function SheetContent({
           side === 'bottom' && 'inset-x-0 bottom-0 max-h-[85dvh] rounded-t-2xl border-t',
           className
         )}
+        onOpenAutoFocus={touchSafeOpenAutoFocus(onOpenAutoFocus)}
         {...props}
       >
         {children}
