@@ -1,10 +1,10 @@
-import { CheckCircle2, Circle, Lock, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { OVERTIME_TYPES, OvertimeRecord, OvertimeRules } from '@/types';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
 import { formatHoursDisplay, getWorkScheduleForDate } from '@/lib/schedule';
 import { cn } from '@/lib/utils';
+import { StatusBadge } from '@/features/records/StatusBadge';
 import { TYPE_STYLES } from './typeStyles';
 
 interface DayRecordsProps {
@@ -91,19 +91,7 @@ export function DayRecords({
                   {rec.notes && <p className="mt-2 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">{rec.notes}</p>}
 
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    {isSent ? (
-                      <Badge variant="secondary">
-                        <Lock /> Enviado
-                      </Badge>
-                    ) : rec.verifiedByManager ? (
-                      <Badge variant="success">
-                        <CheckCircle2 /> Aprobado
-                      </Badge>
-                    ) : (
-                      <Badge variant="warning">
-                        <Circle /> Pendiente
-                      </Badge>
-                    )}
+                    <StatusBadge record={rec} />
 
                     {!isSent && (
                       <div className="flex items-center gap-1">
