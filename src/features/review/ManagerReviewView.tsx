@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { CheckCircle2, AlertCircle, UserCheck, Search, ShieldCheck, DollarSign, Clock, CheckCheck, Trash2, Edit2, Save, X, Lock, AlertTriangle } from 'lucide-react';
-import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES, OvertimeType, UserRole } from '../types';
-import { calculateRecordCost, formatCurrency } from '../utils/exporters';
-import { formatHoursDisplay, getDailyOvertimeAlerts } from '../utils/schedule';
+import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES, OvertimeType, UserRole } from '@/types';
+import { calculateRecordCost, formatCurrency } from '@/lib/exporters';
+import { formatHoursDisplay, getDailyOvertimeAlerts } from '@/lib/schedule';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { useConfirm } from '@/components/ui/confirm';

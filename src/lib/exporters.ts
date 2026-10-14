@@ -1,4 +1,4 @@
-import { Employee, OvertimeRecord, CompanySettings, OVERTIME_TYPES, OvertimeType } from '../types';
+import { Employee, OvertimeRecord, CompanySettings, OVERTIME_TYPES, OvertimeType } from '@/types';
 
 export const calculateRecordCost = (record: OvertimeRecord, employeesMap: Map<string, Employee>) => {
   const emp = employeesMap.get(record.employeeId);

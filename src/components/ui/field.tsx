@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Label } from './label';
+import { Label } from '@/components/ui/label';
 
 // Campo de formulario estándar: etiqueta + control + ayuda o error
 function Field({

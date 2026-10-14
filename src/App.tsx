@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Employee, OvertimeRecord, CompanySettings, UserProfile, UserRole, applyOvertimeRules } from './types';
-import { getEmployees, createEmployee, createMultipleEmployees, updateEmployee, deleteEmployee } from './services/employeesService';
-import { getRecords, createRecords, updateRecord, deleteRecord, verifyAllMonthRecords, markMonthSent } from './services/recordsService';
-import { getCompanySettings, updateCompanySettings } from './services/companyService';
-import { INITIAL_SETTINGS } from './data/defaults';
-import { supabase, isSupabaseConfigured } from './lib/supabase';
-import { Navbar } from './components/Navbar';
-import { CalendarView } from './components/CalendarView';
-import { ManagerReviewView } from './components/ManagerReviewView';
-import { GmailReportBuilder } from './components/GmailReportBuilder';
-import { EmployeeManager } from './components/EmployeeManager';
-import { CompanySettingsView } from './components/CompanySettingsView';
-import { AddOvertimeModal } from './components/AddOvertimeModal';
-import { LoginScreen } from './components/LoginScreen';
-import { PintechLogo } from './components/PintechLogo';
-import { SetPasswordScreen } from './components/SetPasswordScreen';
+import { Employee, OvertimeRecord, CompanySettings, UserProfile, UserRole, applyOvertimeRules } from '@/types';
+import { getEmployees, createEmployee, createMultipleEmployees, updateEmployee, deleteEmployee } from '@/features/employees/api';
+import { getRecords, createRecords, updateRecord, deleteRecord, verifyAllMonthRecords, markMonthSent } from '@/features/records/api';
+import { getCompanySettings, updateCompanySettings } from '@/features/settings/api';
+import { INITIAL_SETTINGS } from '@/data/defaults';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { Navbar } from '@/components/layout/Navbar';
+import { CalendarView } from '@/features/calendar/CalendarView';
+import { ManagerReviewView } from '@/features/review/ManagerReviewView';
+import { GmailReportBuilder } from '@/features/report/GmailReportBuilder';
+import { EmployeeManager } from '@/features/employees/EmployeeManager';
+import { CompanySettingsView } from '@/features/settings/CompanySettingsView';
+import { AddOvertimeDialog } from '@/features/records/AddOvertimeDialog';
+import { LoginScreen } from '@/features/auth/LoginScreen';
+import { PintechLogo } from '@/components/layout/PintechLogo';
+import { SetPasswordScreen } from '@/features/auth/SetPasswordScreen';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 
@@ -491,7 +491,7 @@ export default function App() {
       <Toaster theme={isDarkMode ? 'dark' : 'light'} />
 
       {/* Modal de Registro de Horas Extras */}
-      <AddOvertimeModal
+      <AddOvertimeDialog
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         employees={employees.filter((e) => e.active)}

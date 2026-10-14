@@ -1,7 +1,7 @@
-import { supabase } from '../lib/supabase';
-import { Employee } from '../types';
-import { loadEmployees, saveEmployees } from '../utils/storage';
-import { fail } from './errors';
+import { supabase } from '@/lib/supabase';
+import { Employee } from '@/types';
+import { loadEmployees, saveEmployees } from '@/lib/storage';
+import { fail } from '@/lib/errors';
 
 const fromRow = (d: any, rate = 0): Employee => ({
   id: d.id,

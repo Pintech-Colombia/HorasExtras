@@ -1,7 +1,7 @@
-import { supabase } from '../lib/supabase';
-import { OvertimeRecord } from '../types';
-import { loadRecords, saveRecords } from '../utils/storage';
-import { fail } from './errors';
+import { supabase } from '@/lib/supabase';
+import { OvertimeRecord } from '@/types';
+import { loadRecords, saveRecords } from '@/lib/storage';
+import { fail } from '@/lib/errors';
 
 const fromRow = (d: any): OvertimeRecord => ({
   id: d.id,

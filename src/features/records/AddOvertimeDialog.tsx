@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, User, FileText, CheckCircle2, X, Info, Sparkles, AlertTriangle } from 'lucide-react';
-import { Employee, OvertimeType, OVERTIME_TYPES, OvertimeRecord, OvertimeRules } from '../types';
+import { Employee, OvertimeType, OVERTIME_TYPES, OvertimeRecord, OvertimeRules } from '@/types';
 import {
   getWorkScheduleForDate,
   calculateOvertimeFromDeparture,
@@ -8,13 +8,13 @@ import {
   suggestOvertimeType,
   OvertimeSegment,
   DAILY_OVERTIME_ALERT_HOURS,
-} from '../utils/schedule';
+} from '@/lib/schedule';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 
-interface AddOvertimeModalProps {
+interface AddOvertimeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   employees: Employee[];
@@ -25,7 +25,7 @@ interface AddOvertimeModalProps {
   existingRecords: OvertimeRecord[]; // registros del mes, para las alertas
 }
 
-export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
+export const AddOvertimeDialog: React.FC<AddOvertimeDialogProps> = ({
   isOpen,
   onClose,
   employees,

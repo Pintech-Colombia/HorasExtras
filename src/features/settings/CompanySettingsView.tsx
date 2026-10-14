@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Mail, ShieldCheck, Save, RefreshCw, Lock, Percent } from 'lucide-react';
-import { CompanySettings, UserRole, OvertimeRules, DEFAULT_OVERTIME_RULES } from '../types';
+import { CompanySettings, UserRole, OvertimeRules, DEFAULT_OVERTIME_RULES } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/components/ui/confirm';

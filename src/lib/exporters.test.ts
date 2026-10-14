@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildGmailFormattedText, calculateRecordCost } from './exporters';
-import { applyOvertimeRules, DEFAULT_OVERTIME_RULES, Employee, OvertimeRecord } from '../types';
-import { INITIAL_SETTINGS } from '../data/defaults';
+import { buildGmailFormattedText, calculateRecordCost } from '@/lib/exporters';
+import { applyOvertimeRules, DEFAULT_OVERTIME_RULES, Employee, OvertimeRecord } from '@/types';
+import { INITIAL_SETTINGS } from '@/data/defaults';
 
 const emp: Employee = {
   id: 'e1',

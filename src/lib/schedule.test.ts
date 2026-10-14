@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calculateOvertimeFromDeparture as calc, getDailyOvertimeAlerts, getWorkScheduleForDate } from './schedule';
-import { DEFAULT_OVERTIME_RULES as R, normalizeOvertimeRules } from '../types';
+import { calculateOvertimeFromDeparture as calc, getDailyOvertimeAlerts, getWorkScheduleForDate } from '@/lib/schedule';
+import { DEFAULT_OVERTIME_RULES as R, normalizeOvertimeRules } from '@/types';
 
 describe('cálculo por hora de salida', () => {
   it('martes 6:30 PM = 1.5 h diurnas', () => {
