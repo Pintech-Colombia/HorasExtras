@@ -31,7 +31,7 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
   onSaveSettings,
   onResetDefaults,
 }) => {
-  const canEditSettings = userRole === 'accountant' || userRole === 'admin';
+  const canEditSettings = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
   const [formData, setFormData] = useState<CompanySettings>({ ...settings });
   const [savedStatus, setSavedStatus] = useState(false);
 
@@ -76,7 +76,7 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
         <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-[10px] text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2.5">
           <Lock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <span>
-            <strong>Modo Solo Lectura:</strong> La modificación de datos fiscales, NIT y correos de contabilidad está reservada para el Contador o Administrador.
+            <strong>Modo Solo Lectura:</strong> La modificación de datos fiscales, NIT y correos de contabilidad está reservada para la Jefa, el Contador o el Administrador.
           </span>
         </div>
       )}

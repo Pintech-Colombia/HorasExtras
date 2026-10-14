@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Mail, Copy, Check, ExternalLink, Download, Sparkles, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES } from '../types';
-import { supabase } from '../lib/supabase';
-import { buildGmailFormattedText, copyRichHtmlToClipboard, exportToCSV, getGmailWebUrl, getMailtoUrl, formatCurrency, calculateRecordCost } from '../utils/exporters';
+import { Mail, Copy, Check, ExternalLink, Download, Lock, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { OvertimeRecord, Employee, CompanySettings } from '../types';
+import { buildGmailFormattedText, copyRichHtmlToClipboard, exportToCSV, getGmailWebUrl, formatCurrency, calculateRecordCost } from '../utils/exporters';
 import { formatHoursDisplay } from '../utils/schedule';
 
 interface GmailReportBuilderProps {
@@ -10,6 +9,7 @@ interface GmailReportBuilderProps {
   employees: Employee[];
   settings: CompanySettings;
   selectedMonth: string; // YYYY-MM
+  onMarkMonthSent: () => Promise<number | null>;
 }
 
 export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
@@ -17,11 +17,11 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
   employees,
   settings,
   selectedMonth,
+  onMarkMonthSent,
 }) => {
   const [copiedStatus, setCopiedStatus] = useState<boolean>(false);
-  const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
-  const [aiNotes, setAiNotes] = useState<string>('');
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [isMarking, setIsMarking] = useState<boolean>(false);
+  const [sentMessage, setSentMessage] = useState<string | null>(null);
 
   const employeesMap = new Map<string, Employee>(employees.map((e) => [e.id, e]));
 
@@ -33,21 +33,18 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
 
   // Month records
   const monthRecords = records.filter((r) => r.date.startsWith(selectedMonth));
+  // El reporte al contador solo incluye horas aprobadas por la Jefa (o ya enviadas)
   const verifiedRecords = monthRecords.filter((r) => r.verifiedByManager);
   const unverifiedCount = monthRecords.length - verifiedRecords.length;
+  const readyToSendCount = verifiedRecords.filter((r) => r.status === 'verified_manager').length;
+  const sentCount = verifiedRecords.filter((r) => r.status === 'sent_accountant').length;
 
   // Build default formatted email content
-  const { subject, plainText, htmlText } = buildGmailFormattedText(
-    monthYearLabel,
-    monthRecords,
-    employeesMap,
-    settings,
-    aiNotes
-  );
+  const { subject, plainText, htmlText } = buildGmailFormattedText(monthYearLabel, verifiedRecords, employeesMap, settings);
 
   // Grouping for table preview
-  const totalHoursMonth = monthRecords.reduce((s, r) => s + r.hours, 0);
-  const totalCostMonth = monthRecords.reduce((s, r) => s + calculateRecordCost(r, employeesMap), 0);
+  const totalHoursMonth = verifiedRecords.reduce((s, r) => s + r.hours, 0);
+  const totalCostMonth = verifiedRecords.reduce((s, r) => s + calculateRecordCost(r, employeesMap), 0);
 
   // Copy handler
   const handleCopyForGmail = async () => {
@@ -75,74 +72,22 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
 
   // Export CSV for accountant
   const handleExportCSV = () => {
-    exportToCSV(monthRecords, employeesMap, selectedMonth, settings.companyName);
+    exportToCSV(verifiedRecords, employeesMap, selectedMonth, settings.companyName);
   };
 
-  // Generate AI Summary with Gemini
-  const handleGenerateAiSummary = async () => {
-    setIsGeneratingAi(true);
-    setAiError(null);
-
-    // Group employee totals
-    const empMap = new Map<string, any>();
-
-    monthRecords.forEach((r) => {
-      const emp = employeesMap.get(r.employeeId);
-      if (!empMap.has(r.employeeId)) {
-        empMap.set(r.employeeId, {
-          nombre: r.employeeName,
-          cedula: emp?.documentId || 'S/D',
-          cargo: emp?.position || 'Operativo',
-          horasExtrasTotales: 0,
-          detalle: [],
-        });
-      }
-      const item = empMap.get(r.employeeId);
-      item.horasExtrasTotales += r.hours;
-      item.detalle.push({
-        fecha: r.date,
-        horas: r.hours,
-        tipo: OVERTIME_TYPES[r.type]?.label || r.type,
-        nota: r.notes || '',
-      });
-    });
-
-    try {
-      const { data: sessionData } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
-      const token = sessionData.session?.access_token;
-      const res = await fetch('/api/ai/generate-summary', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          monthYear: monthYearLabel,
-          totalHours: totalHoursMonth,
-          employeeSummaries: Array.from(empMap.values()),
-          companyName: settings.companyName,
-          accountantName: settings.accountantName,
-          accountantEmail: settings.accountantEmail,
-          managerName: settings.managerName,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Error al conectar con la API de IA');
-      }
-
-      if (data.auditSummary) {
-        setAiNotes(data.auditSummary);
-      } else if (data.emailBodyText) {
-        setAiNotes(data.emailBodyText);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setAiError(err.message || 'Ocurrió un error al generar la síntesis con IA.');
-    } finally {
-      setIsGeneratingAi(false);
-    }
+  // Bloquea los registros aprobados del mes una vez enviados al contador
+  const handleMarkSent = async () => {
+    if (
+      !window.confirm(
+        `¿Marcar ${readyToSendCount} registro(s) aprobados de ${monthYearLabel} como enviados a contabilidad?\n\nDespués no se podrán editar ni borrar.`
+      )
+    )
+      return;
+    setIsMarking(true);
+    setSentMessage(null);
+    const count = await onMarkMonthSent();
+    setIsMarking(false);
+    if (count !== null) setSentMessage(`${count} registro(s) marcados como enviados y bloqueados.`);
   };
 
   return (
@@ -216,7 +161,7 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
           <div className="relative z-10 mt-4 p-3 bg-[#202020] border border-amber-500/40 rounded-[10px] text-amber-300 text-xs flex items-center gap-2 font-sans">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              <strong>Aviso:</strong> Hay {unverifiedCount} registro(s) sin verificar por el encargado ({settings.managerName}). Te recomendamos revisarlos antes de enviar el correo.
+              <strong>Aviso:</strong> Hay {unverifiedCount} registro(s) sin aprobar por {settings.managerName}. No se incluyen en este reporte hasta que sean aprobados en Auditoría.
             </span>
           </div>
         )}
@@ -226,48 +171,36 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: AI Assistant & Controls */}
         <div className="space-y-4">
-          {/* Gemini AI Card */}
-          <div className="bg-white dark:bg-[#111111] rounded-[12px] p-5 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-card space-y-4">
+          {/* Enviado a contabilidad */}
+          <div className="bg-white dark:bg-[#111111] rounded-[12px] p-5 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-card space-y-3">
             <div className="flex items-center gap-2 text-[#171717] dark:text-white font-semibold text-sm">
               <div className="p-1.5 rounded-[6px] bg-[#171717] dark:bg-white text-white dark:text-[#171717]">
-                <Sparkles className="w-3.5 h-3.5" />
+                <Lock className="w-3.5 h-3.5" />
               </div>
-              <h3>Asistente de Auditoría (Gemini)</h3>
+              <h3>Cierre del Mes</h3>
             </div>
-
             <p className="text-xs text-neutral-500 dark:text-neutral-400 font-sans">
-              Genera automáticamente una nota ejecutiva de auditoría para el contador, identificando empleados con mayor recargo y observaciones.
+              Después de enviar el correo, marca el mes como enviado. Los registros aprobados quedan bloqueados para que nadie los cambie.
             </p>
-
+            <div className="text-xs font-sans space-y-1">
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Aprobados por enviar:</span>
+                <span className="font-mono font-semibold">{readyToSendCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Ya enviados:</span>
+                <span className="font-mono font-semibold">{sentCount}</span>
+              </div>
+            </div>
             <button
-              onClick={handleGenerateAiSummary}
-              disabled={isGeneratingAi || monthRecords.length === 0}
+              onClick={handleMarkSent}
+              disabled={isMarking || readyToSendCount === 0}
               className="button-primary w-full h-9 rounded-full text-xs font-medium flex items-center justify-center gap-2"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{isGeneratingAi ? 'Analizando con Gemini...' : 'Generar Síntesis con IA'}</span>
+              <Lock className="w-3.5 h-3.5" />
+              <span>{isMarking ? 'Marcando...' : 'Marcar como enviado a contabilidad'}</span>
             </button>
-
-            {aiError && (
-              <div className="p-3 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 rounded-[8px] text-xs font-sans">
-                {aiError}
-              </div>
-            )}
-
-            {aiNotes && (
-              <div className="p-3 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] text-xs text-neutral-800 dark:text-neutral-200 space-y-2">
-                <div className="font-semibold flex items-center justify-between text-xs">
-                  <span>Nota de Auditoría IA:</span>
-                  <button
-                    onClick={() => setAiNotes('')}
-                    className="caption-mono text-[10px] text-neutral-400 hover:text-neutral-700 dark:hover:text-white transition underline"
-                  >
-                    Borrar
-                  </button>
-                </div>
-                <p className="whitespace-pre-wrap leading-relaxed text-[11px] font-sans text-neutral-600 dark:text-neutral-300">{aiNotes}</p>
-              </div>
-            )}
+            {sentMessage && <p className="text-xs text-emerald-600 dark:text-emerald-400">{sentMessage}</p>}
           </div>
 
           {/* Quick Summary Card */}
@@ -294,7 +227,7 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
                 <span className="font-mono font-semibold text-neutral-900 dark:text-white">{formatHoursDisplay(totalHoursMonth)}</span>
               </div>
               <div className="flex justify-between py-1">
-                <span className="text-neutral-500 dark:text-neutral-400">Est. Recargos:</span>
+                <span className="text-neutral-500 dark:text-neutral-400">Valor est. extras:</span>
                 <span className="font-mono font-semibold text-neutral-900 dark:text-white">{formatCurrency(totalCostMonth, settings.currencySymbol)}</span>
               </div>
             </div>

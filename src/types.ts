@@ -149,6 +149,6 @@ export interface UserProfile {
   fullName: string;
   role: UserRole;
   companyId?: string;
+  mustChangePassword?: boolean;
 }
 
-export type PeriodType = 'full_month' | 'first_half' | 'second_half';

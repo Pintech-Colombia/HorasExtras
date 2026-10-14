@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, CheckCircle2, Mail, Users, Plus, Settings, Sun, Moon, Cloud, Database, LogOut, LogIn, ChevronDown } from 'lucide-react';
-import { CompanySettings, UserRole, PeriodType } from '../types';
+import { CompanySettings, UserRole } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { PintechLogo } from './PintechLogo';
 
@@ -19,8 +19,7 @@ interface NavbarProps {
   userName?: string | null;
   userRole?: UserRole | null;
   onRoleSwitch?: (role: UserRole) => void;
-  periodType?: PeriodType;
-  onPeriodChange?: (p: PeriodType) => void;
+  canRegister: boolean;
   onOpenAuth: () => void;
   onSignOut: () => void;
 }
@@ -40,8 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   userName,
   userRole,
   onRoleSwitch,
-  periodType = 'full_month',
-  onPeriodChange,
+  canRegister,
   onOpenAuth,
   onSignOut,
 }) => {
@@ -59,15 +57,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const canSeeReview = effectiveRole === 'manager' || effectiveRole === 'accountant' || effectiveRole === 'admin';
   const canSeeGmail = effectiveRole === 'manager' || effectiveRole === 'accountant' || effectiveRole === 'admin';
   const canSeeEmployees = effectiveRole === 'manager' || effectiveRole === 'accountant' || effectiveRole === 'admin';
-  const canSeeSettings = effectiveRole === 'accountant' || effectiveRole === 'admin';
+  const canSeeSettings = effectiveRole === 'manager' || effectiveRole === 'accountant' || effectiveRole === 'admin';
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-[#ebebeb] dark:border-[#262626] transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top 64px Bar (Vercel Standard Height) */}
-        <div className="h-16 flex items-center justify-between gap-4">
+        <div className="min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
           {/* Brand Logo */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 shrink-0">
             <PintechLogo size="sm" showSubtitle={false} />
 
             {/* Cloud Status Pill (Vercel style micro-badge) */}
@@ -86,21 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action Cluster */}
-          <div className="flex items-center gap-2">
-            {/* Period Selector (Geist Mono) */}
-            <div className="hidden md:flex items-center bg-[#fafafa] dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] px-2 h-8 text-xs font-mono-tech">
-              <span className="text-[#888888] mr-1 text-[11px]">Periodo:</span>
-              <select
-                value={periodType}
-                onChange={(e) => onPeriodChange?.(e.target.value as PeriodType)}
-                className="bg-transparent text-[#171717] dark:text-[#ededed] font-medium border-none focus:outline-none cursor-pointer"
-              >
-                <option value="full_month" className="bg-white dark:bg-[#111111]">Mes Completo</option>
-                <option value="first_half" className="bg-white dark:bg-[#111111]">1ra Quincena (1-15)</option>
-                <option value="second_half" className="bg-white dark:bg-[#111111]">2da Quincena (16-Fin)</option>
-              </select>
-            </div>
-
+          <div className="flex flex-wrap items-center justify-end gap-2 min-w-0">
             {/* Month Input (Geist Mono) */}
             <div className="flex items-center bg-[#fafafa] dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] px-2 h-8 text-xs font-mono-tech">
               <input
@@ -152,7 +136,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* User Session or Login Button */}
             {userEmail ? (
               <div className="flex items-center gap-2 h-8 px-2.5 rounded-[6px] border border-[#ebebeb] dark:border-[#262626] bg-[#fafafa] dark:bg-[#111111] text-xs">
-                <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#888888]">
+                <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#888888] hidden sm:inline">
                   {roleLabelMap[effectiveRole]}
                 </span>
                 <span className="font-medium text-[#171717] dark:text-white max-w-[110px] truncate hidden md:inline">
@@ -177,6 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Primary Action Button (Vercel 100px Pill) */}
+            {canRegister && (
             <button
               onClick={onOpenNewRecordModal}
               className="h-8 sm:h-9 px-3.5 sm:px-4 rounded-full bg-[#171717] hover:bg-[#262626] dark:bg-white dark:hover:bg-[#ededed] text-white dark:text-[#171717] text-xs font-medium transition-colors flex items-center gap-1.5 shadow-vercel-subtle cursor-pointer shrink-0"
@@ -185,6 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden sm:inline">Registrar Horas</span>
               <span className="sm:hidden">Registrar</span>
             </button>
+            )}
           </div>
         </div>
 

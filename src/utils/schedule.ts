@@ -196,3 +196,26 @@ export const formatHoursDisplay = (hours: number): string => {
   }
   return `${whole}h ${minutes}m`;
 };
+
+// Límite habitual de horas extra por día ordinario (se usa solo como alerta, no bloquea)
+export const DAILY_OVERTIME_ALERT_HOURS = 2;
+
+// Devuelve "empleado|fecha" -> total de horas, solo para los días ordinarios que superan el límite
+export const getDailyOvertimeAlerts = (
+  records: { employeeId: string; date: string; hours: number }[],
+  rules: OvertimeRules = DEFAULT_OVERTIME_RULES
+): Map<string, number> => {
+  const totals = new Map<string, number>();
+  records.forEach((r) => {
+    const key = `${r.employeeId}|${r.date}`;
+    totals.set(key, (totals.get(key) || 0) + r.hours);
+  });
+  const alerts = new Map<string, number>();
+  totals.forEach((total, key) => {
+    const date = key.split('|')[1];
+    if (total > DAILY_OVERTIME_ALERT_HOURS && getWorkScheduleForDate(date, rules).hasOrdinaryShift) {
+      alerts.set(key, roundHours(total));
+    }
+  });
+  return alerts;
+};

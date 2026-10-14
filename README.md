@@ -12,7 +12,6 @@ Diseñado con una arquitectura moderna desacoplada: **Frontend en React 19**, **
 - **Recargos configurables (Ley 2466 de 2025 por defecto):** Extra diurna 25 %, extra nocturna 75 %, dominical/festiva diurna 115 %, dominical/festiva nocturna 165 %. Separa automáticamente horas diurnas y nocturnas y detecta festivos de Colombia.
 - **Módulo de Auditoría y Verificación:** Permite al encargado de planta o supervisor conciliar, editar y aprobar registros antes de consolidarlos para contabilidad.
 - **Automatización de Correo para Gmail:** Genera una tabla estilizada en formato HTML enriquecido lista para copiar directamente al portapapeles (`Ctrl + V`) y pegar en Gmail Web o cliente de correo.
-- **Asistente de Auditoría con IA (Gemini):** Redacta notas ejecutivas de cierre y detecta empleados con altas concentraciones de horas extras.
 - **Exportación Contable:** Descarga de reportes detallados en formato CSV/Excel listos para procesar nómina.
 - **Datos solo en la nube:** En producción trabaja exclusivamente con Supabase. Si un guardado falla, se informa en pantalla (no se guarda a escondidas en el navegador). El modo demostración con datos ficticios solo existe en desarrollo local sin Supabase.
 
@@ -24,18 +23,13 @@ Diseñado con una arquitectura moderna desacoplada: **Frontend en React 19**, **
 | :--- | :--- |
 | **Frontend** | React 19, TypeScript, Vite 6 |
 | **Estilos & UI** | Tailwind CSS v4, Lucide React, Motion |
-| **Backend Serverless** | Vercel Serverless Functions (`api/ai/generate-summary.ts`) |
 | **Base de Datos & Auth** | Supabase (PostgreSQL con Row Level Security + Supabase Auth) |
-| **Inteligencia Artificial** | Google Gemini 2.5 Flash (`@google/genai`) |
 
 ---
 
 ## 📁 Estructura del Proyecto
 
 ```text
-├── api/                        # Funciones Serverless de Vercel
-│   └── ai/
-│       └── generate-summary.ts # Generador de resúmenes de auditoría con Gemini
 ├── public/                     # Archivos estáticos públicos
 ├── src/
 │   ├── components/             # Componentes de la interfaz de usuario
@@ -89,12 +83,9 @@ cp .env.example .env
 
 Contenido del archivo `.env`:
 ```env
-# Supabase (Opcional para modo local, requerido para sincronización en la nube)
-VITE_SUPABASE_URL="https://tu-proyecto.supabase.co"
-VITE_SUPABASE_ANON_KEY="tu_supabase_anon_key"
-
-# Google Gemini (Para generar síntesis de correo con IA)
-GEMINI_API_KEY="tu_gemini_api_key"
+# Supabase (sin estas variables, en desarrollo se abre el modo demostración con datos ficticios)
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
 ```
 
 ### 3. Ejecutar en Modo Desarrollo
@@ -112,6 +103,9 @@ Abre tu navegador en `http://localhost:3000` (o el puerto indicado en la consola
 > El esquema **no contiene datos de prueba**. Solo crea tablas, reglas de seguridad y la ficha de la empresa.
 > Verifique el NIT y el correo del contador al final de `supabase/schema.sql` antes de ejecutarlo.
 
+> **¿Ya tiene la base funcionando con la versión anterior (v2)?** Ejecute [`supabase/migration_v3.sql`](./supabase/migration_v3.sql)
+> y luego `schema.sql` completo otra vez. No borra datos.
+
 1. Cree un proyecto en [Supabase](https://supabase.com) (plan gratuito). Use un proyecto **separado** para pruebas.
    - **Si reanuda un proyecto pausado** con la versión anterior: descargue un respaldo y ejecute primero
      [`supabase/reset_v1.sql`](./supabase/reset_v1.sql) (borra las tablas viejas; conserva los usuarios de Authentication).
@@ -128,12 +122,23 @@ Abre tu navegador en `http://localhost:3000` (o el puerto indicado en la consola
 
 ### Roles y permisos (aplicados en la base de datos, no solo en pantalla)
 
-| Rol | Puede |
-| :--- | :--- |
-| `supervisor` | Registrar horas (quedan pendientes) y borrar solo sus registros pendientes |
-| `manager` (Jefa) | Aprobar/editar/borrar registros, crear y editar empleados (sin tarifas) |
-| `accountant` (Contador) | Ver todo, editar registros, fijar tarifas y configurar recargos y jornada |
-| `admin` | Todo, incluido eliminar empleados sin historial y cambiar roles |
+| | Supervisor (planta) | Jefa de Producción (`manager`) | Contador (`accountant`) | Admin |
+| :--- | :---: | :---: | :---: | :---: |
+| Registrar horas | ✅ | ✅ | ❌ | ✅ |
+| Ver calendario | ✅ | ✅ | ✅ | ✅ |
+| Ver tarifas y valores ($) | ❌ | ✅ | ✅ | ✅ |
+| Aprobar / editar / borrar registros | solo sus pendientes | ✅ | ❌ | ✅ |
+| Crear y editar empleados | ❌ | ✅ | ❌ | ✅ |
+| Cambiar valor hora | ❌ | ✅ | ✅ | ✅ |
+| Reporte, Excel y "enviado a contabilidad" | ❌ | ✅ | ✅ | ✅ |
+| Configuración (recargos, jornada, empresa) | ❌ | ✅ | ✅ | ✅ |
+
+Las tarifas están en una tabla aparte (`employee_rates`) que el supervisor no puede leer ni siquiera consultando la base.
+Cada registro guarda el porcentaje vigente al crearlo: cambiar los recargos no altera meses anteriores.
+
+**Contraseñas:** cree cada usuario en *Authentication → Users → Add user → Create new user* (con *Auto Confirm User*) y
+entréguele una contraseña temporal; al primer ingreso la app le obliga a crear la suya. Para que "Olvidé mi contraseña"
+funcione, en *Authentication → URL Configuration* ponga la URL de Vercel en **Site URL** y en **Redirect URLs**.
 
 Protecciones adicionales: un empleado con horas registradas no se puede borrar (solo inactivar), los registros
 marcados como enviados a contabilidad quedan bloqueados, la cédula es única y toda modificación queda en `audit_log`.
@@ -167,9 +172,7 @@ de cada mes al cierre.
 ## 🚢 Despliegue en Vercel
 
 1. En [Vercel](https://vercel.com), importe el repositorio (o abra el proyecto existente).
-2. En **Settings → Environment Variables**, configure:
-   - `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (del proyecto nuevo)
-   - `GEMINI_API_KEY` (opcional; sin ella el correo usa una plantilla fija) y `GEMINI_MODEL` (opcional, por defecto `gemini-2.5-flash`)
+2. En **Settings → Environment Variables**, configure (sin comillas) `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
 3. **Redeploy**. Si faltan las variables de Supabase, la app muestra un aviso y no opera (nunca usa datos locales).
 
 ---
