@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, FileText, CheckCircle2, X, Info, ArrowRight, Sparkles } from 'lucide-react';
+import { Calendar, Clock, User, FileText, CheckCircle2, X, Info, ArrowRight, Sparkles, AlertTriangle } from 'lucide-react';
 import { Employee, OvertimeType, OVERTIME_TYPES, OvertimeRecord, OvertimeRules } from '../types';
 import {
   getWorkScheduleForDate,
@@ -7,6 +7,7 @@ import {
   formatHoursDisplay,
   suggestOvertimeType,
   OvertimeSegment,
+  DAILY_OVERTIME_ALERT_HOURS,
 } from '../utils/schedule';
 
 interface AddOvertimeModalProps {
@@ -17,6 +18,7 @@ interface AddOvertimeModalProps {
   onSaveRecords: (records: Omit<OvertimeRecord, 'id' | 'createdAt'>[]) => Promise<boolean>;
   rules: OvertimeRules;
   canVerify: boolean; // solo Jefa/Admin pueden registrar ya verificado
+  existingRecords: OvertimeRecord[]; // registros del mes, para las alertas
 }
 
 export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
@@ -27,6 +29,7 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
   onSaveRecords,
   rules,
   canVerify,
+  existingRecords,
 }) => {
   const [date, setDate] = useState<string>('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
@@ -88,6 +91,24 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
     effectiveHours = calc.hours;
     calculationBreakdown = calc.breakdown;
     segments = calc.segments;
+  }
+
+  // Alertas (no bloquean): registro repetido el mismo día y más de 2 h extra en un día ordinario
+  const warnings: string[] = [];
+  if (date && effectiveHours > 0) {
+    selectedEmployeeIds.forEach((empId) => {
+      const emp = employees.find((e) => e.id === empId);
+      const sameDay = existingRecords.filter((r) => r.employeeId === empId && r.date === date);
+      const name = emp?.name || 'Empleado';
+      if (sameDay.length > 0) {
+        const prev = sameDay.reduce((acc, r) => acc + r.hours, 0);
+        warnings.push(`${name} ya tiene ${formatHoursDisplay(prev)} registradas este día. ¿Es un registro repetido?`);
+      }
+      const dayTotal = sameDay.reduce((acc, r) => acc + r.hours, 0) + effectiveHours;
+      if (schedule.hasOrdinaryShift && dayTotal > DAILY_OVERTIME_ALERT_HOURS) {
+        warnings.push(`${name} sumaría ${formatHoursDisplay(dayTotal)} extra este día (límite habitual: ${DAILY_OVERTIME_ALERT_HOURS} h).`);
+      }
+    });
   }
 
   const toggleEmployeeSelect = (empId: string) => {
@@ -446,6 +467,18 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               Marcar como revisado y verificado por el encargado inmediatamente
             </label>
           </div>
+          )}
+
+          {warnings.length > 0 && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-[8px] text-[11px] text-amber-800 dark:text-amber-200 space-y-1 font-sans">
+              {warnings.map((w) => (
+                <div key={w} className="flex items-start gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{w}</span>
+                </div>
+              ))}
+              <p className="text-amber-700/80 dark:text-amber-300/70">Puedes guardar igual si es correcto.</p>
+            </div>
           )}
 
           {/* Submit */}

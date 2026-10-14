@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { PintechLogo } from './PintechLogo';
 
 interface LoginScreenProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess?: () => void;
   onContinueOffline?: () => void;
 }
 
@@ -61,7 +61,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         } else {
           setSuccessMsg('Registro exitoso. Iniciando sesión...');
           setTimeout(() => {
-            onLoginSuccess();
+            onLoginSuccess?.();
           }, 800);
         }
       } else {
@@ -74,7 +74,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
         setSuccessMsg('Sesión iniciada con éxito.');
         setTimeout(() => {
-          onLoginSuccess();
+          onLoginSuccess?.();
         }, 600);
       }
     } catch (err: any) {

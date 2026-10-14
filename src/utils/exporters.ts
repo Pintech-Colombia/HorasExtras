@@ -7,6 +7,33 @@ export const calculateRecordCost = (record: OvertimeRecord, employeesMap: Map<st
   return record.hours * baseRate * mult;
 };
 
+// Escapa texto para insertarlo en el HTML del correo
+const esc = (v: unknown) =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+// Celda CSV segura: comillas escapadas y sin fórmulas (=, +, -, @) que Excel ejecutaría
+const csvCell = (v: unknown) => {
+  let text = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+// Etiqueta corta de cada tipo con el porcentaje vigente, p. ej. "Ex. Diurna (25%)"
+const shortLabel = (t: OvertimeType) => {
+  const pct = Number(((OVERTIME_TYPES[t].multiplier - 1) * 100).toFixed(2));
+  const names: Record<OvertimeType, string> = {
+    diurna: 'Ex. Diurna',
+    nocturna: 'Ex. Nocturna',
+    festiva_diurna: 'Fest. Diurna',
+    festiva_nocturna: 'Fest. Nocturna',
+  };
+  return `${names[t]} (${pct}%)`;
+};
+
 // Formatter for currency
 export const formatCurrency = (amount: number, symbol = '$') => {
   return `${symbol} ${amount.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -38,28 +65,33 @@ export const exportToCSV = (
     return [
       rec.id,
       rec.date,
-      emp ? `"${emp.documentId}"` : 'N/A',
-      `"${rec.employeeName}"`,
-      `"${emp?.position || 'Operativo'}"`,
+      csvCell(emp ? emp.documentId : 'N/A'),
+      csvCell(rec.employeeName),
+      csvCell(emp?.position || 'Operativo'),
       rec.hours,
-      `"${typeInfo?.label || rec.type}"`,
+      csvCell(typeInfo?.label || rec.type),
       `${Number((((rec.customMultiplier || typeInfo?.multiplier || 1) - 1) * 100).toFixed(2))}% recargo (${Number((rec.customMultiplier || typeInfo?.multiplier || 1).toFixed(4))}x)`,
-      rec.verifiedByManager ? 'Verificado por Encargado' : 'Pendiente Revisión',
-      `"${(rec.notes || '').replace(/"/g, '""')}"`,
+      rec.status === 'sent_accountant' ? 'Enviado a Contabilidad' : rec.verifiedByManager ? 'Verificado por Encargado' : 'Pendiente Revisión',
+      csvCell(rec.notes || ''),
     ];
   });
 
-  const csvContent =
-    'data:text/csv;charset=utf-8,\uFEFF' +
-    [`# Reporte de Horas Extras - ${companyName} - Mes: ${monthYearStr}`, headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+  const csvContent = [
+    `# Reporte de Horas Extras - ${companyName} - Mes: ${monthYearStr}`,
+    headers.join(','),
+    ...rows.map((e) => e.join(',')),
+  ].join('\n');
 
-  const encodedUri = encodeURI(csvContent);
+  // Blob en lugar de enlace data: (el carácter # del encabezado cortaba el archivo)
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
+  link.setAttribute('href', url);
   link.setAttribute('download', `Horas_Extras_${companyName.replace(/\s+/g, '_')}_${monthYearStr}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 // Build Formatted Email Text for Gmail
@@ -67,8 +99,7 @@ export const buildGmailFormattedText = (
   monthYearLabel: string,
   records: OvertimeRecord[],
   employeesMap: Map<string, Employee>,
-  settings: CompanySettings,
-  aiAuditNotes?: string
+  settings: CompanySettings
 ): { subject: string; plainText: string; htmlText: string } => {
   const subject = `[NÓMINA] Reporte Consolidado de Horas Extras - ${monthYearLabel} - ${settings.companyName}`;
 
@@ -137,7 +168,7 @@ export const buildGmailFormattedText = (
   plainText += `===========================================================\n`;
   plainText += `- Total Empleados con Horas Extras: ${empList.length}\n`;
   plainText += `- Total Horas Extras Registradas: ${grandTotalHours} hrs\n`;
-  plainText += `- Valor Estimado de Recargos: ${formatCurrency(grandTotalCost, settings.currencySymbol)}\n\n`;
+  plainText += `- Valor Estimado de Horas Extras: ${formatCurrency(grandTotalCost, settings.currencySymbol)}\n\n`;
 
   plainText += `-----------------------------------------------------------\n`;
   plainText += `DETALLE POR EMPLEADO:\n`;
@@ -146,16 +177,12 @@ export const buildGmailFormattedText = (
   empList.forEach((e, idx) => {
     plainText += `${idx + 1}. ${e.name} (Doc: ${e.doc})\n`;
     plainText += `   Cargo: ${e.employee?.position || 'Operativo'}\n`;
-    plainText += `   - Extra Diurna (25%): ${e.diurna} h\n`;
-    plainText += `   - Extra Nocturna (75%): ${e.nocturna} h\n`;
-    plainText += `   - Dominical/Festiva Diurna (100%): ${e.festivaDiurna} h\n`;
-    plainText += `   - Dominical/Festiva Nocturna (150%): ${e.festivaNocturna} h\n`;
-    plainText += `   => TOTAL HORAS: ${e.totalHours} hrs | Recargo est: ${formatCurrency(e.estimatedSurcharge, settings.currencySymbol)}\n\n`;
+    plainText += `   - ${OVERTIME_TYPES.diurna.label}: ${e.diurna} h\n`;
+    plainText += `   - ${OVERTIME_TYPES.nocturna.label}: ${e.nocturna} h\n`;
+    plainText += `   - ${OVERTIME_TYPES.festiva_diurna.label}: ${e.festivaDiurna} h\n`;
+    plainText += `   - ${OVERTIME_TYPES.festiva_nocturna.label}: ${e.festivaNocturna} h\n`;
+    plainText += `   => TOTAL HORAS: ${e.totalHours} hrs | Valor est. extras: ${formatCurrency(e.estimatedSurcharge, settings.currencySymbol)}\n\n`;
   });
-
-  if (aiAuditNotes) {
-    plainText += `\nOBSERVACIONES Y AUDITORÍA:\n${aiAuditNotes}\n\n`;
-  }
 
   plainText += `Quedamos atentos a cualquier inquietud para el procesamiento de la nómina del mes.\n\n`;
   plainText += `Atentamente,\n`;
@@ -168,11 +195,11 @@ export const buildGmailFormattedText = (
 <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 680px; margin: 0 auto; line-height: 1.5;">
   <div style="background-color: #1e3a8a; color: #ffffff; padding: 20px; border-radius: 8px 8px 0 0;">
     <h2 style="margin: 0; font-size: 20px;">REPORTE DE HORAS EXTRAS - ${monthYearLabel.toUpperCase()}</h2>
-    <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">${settings.companyName} | NIT: ${settings.companyNIT}</p>
+    <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">${esc(settings.companyName)} | NIT: ${esc(settings.companyNIT)}</p>
   </div>
   
   <div style="padding: 20px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px; background-color: #ffffff;">
-    <p>Apreciado(a) <strong>${settings.accountantName}</strong>,</p>
+    <p>Apreciado(a) <strong>${esc(settings.accountantName)}</strong>,</p>
     <p>Le enviamos el reporte detallado y verificado de las <strong>horas extras</strong> realizadas por el personal durante el mes de <strong>${monthYearLabel}</strong>.</p>
     
     <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 12px 16px; margin: 20px 0; border-radius: 0 6px 6px 0;">
@@ -180,8 +207,8 @@ export const buildGmailFormattedText = (
       <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #334155;">
         <li><strong>Empleados reportados:</strong> ${empList.length}</li>
         <li><strong>Total horas extras del mes:</strong> ${grandTotalHours} hrs</li>
-        <li><strong>Valor acumulado de recargos:</strong> <span style="color: #16a34a; font-weight: bold;">${formatCurrency(grandTotalCost, settings.currencySymbol)}</span></li>
-        <li><strong>Validado por:</strong> ${settings.managerName} (${settings.managerTitle})</li>
+        <li><strong>Valor estimado de horas extras:</strong> <span style="color: #16a34a; font-weight: bold;">${formatCurrency(grandTotalCost, settings.currencySymbol)}</span></li>
+        <li><strong>Validado por:</strong> ${esc(settings.managerName)} (${esc(settings.managerTitle)})</li>
       </ul>
     </div>
 
@@ -191,10 +218,10 @@ export const buildGmailFormattedText = (
       <thead>
         <tr style="background-color: #f1f5f9; color: #334155; text-align: left;">
           <th style="padding: 10px; border: 1px solid #cbd5e1;">Empleado / Documento</th>
-          <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Ex. Diurna (25%)</th>
-          <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Ex. Nocturna (75%)</th>
-          <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Fest. Diurna (100%)</th>
-          <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Fest. Noct. (150%)</th>
+          <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">${shortLabel('diurna')}</th>
+          <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">${shortLabel('nocturna')}</th>
+          <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">${shortLabel('festiva_diurna')}</th>
+          <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">${shortLabel('festiva_nocturna')}</th>
           <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">Total Horas</th>
         </tr>
       </thead>
@@ -205,8 +232,8 @@ export const buildGmailFormattedText = (
     htmlText += `
         <tr>
           <td style="padding: 10px; border: 1px solid #e2e8f0;">
-            <strong>${e.name}</strong><br/>
-            <span style="font-size: 11px; color: #64748b;">Doc: ${e.doc} | ${e.employee?.position || 'Operativo'}</span>
+            <strong>${esc(e.name)}</strong><br/>
+            <span style="font-size: 11px; color: #64748b;">Doc: ${esc(e.doc)} | ${esc(e.employee?.position || 'Operativo')}</span>
           </td>
           <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">${e.diurna > 0 ? `<strong>${e.diurna}h</strong>` : '-'}</td>
           <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">${e.nocturna > 0 ? `<strong>${e.nocturna}h</strong>` : '-'}</td>
@@ -227,22 +254,13 @@ export const buildGmailFormattedText = (
     </table>
   `;
 
-  if (aiAuditNotes) {
-    htmlText += `
-    <div style="margin-top: 25px; padding: 15px; background-color: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe;">
-      <h4 style="margin: 0 0 8px 0; color: #1d4ed8;">Observaciones & Notas de Auditoría:</h4>
-      <p style="margin: 0; font-size: 13px; color: #1e3a8a; white-space: pre-wrap;">${aiAuditNotes}</p>
-    </div>
-    `;
-  }
-
   htmlText += `
     <p style="margin-top: 30px;">Quedamos atentos a cualquier confirmación necesaria para el cierre de la nómina.</p>
     
     <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 13px; color: #475569;">
-      <strong>${settings.managerName}</strong><br/>
-      ${settings.managerTitle}<br/>
-      ${settings.companyName}
+      <strong>${esc(settings.managerName)}</strong><br/>
+      ${esc(settings.managerTitle)}<br/>
+      ${esc(settings.companyName)}
     </div>
   </div>
 </div>

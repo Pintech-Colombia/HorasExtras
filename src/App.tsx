@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Employee, OvertimeRecord, CompanySettings, UserProfile, UserRole, PeriodType, applyOvertimeRules } from './types';
+import { Employee, OvertimeRecord, CompanySettings, UserProfile, UserRole, applyOvertimeRules } from './types';
 import { getEmployees, createEmployee, createMultipleEmployees, updateEmployee, deleteEmployee } from './services/employeesService';
-import { getRecords, createRecords, updateRecord, deleteRecord, verifyAllMonthRecords } from './services/recordsService';
+import { getRecords, createRecords, updateRecord, deleteRecord, verifyAllMonthRecords, markMonthSent } from './services/recordsService';
 import { getCompanySettings, updateCompanySettings } from './services/companyService';
 import { INITIAL_SETTINGS } from './data/defaults';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
@@ -14,6 +14,7 @@ import { CompanySettingsView } from './components/CompanySettingsView';
 import { AddOvertimeModal } from './components/AddOvertimeModal';
 import { LoginScreen } from './components/LoginScreen';
 import { PintechLogo } from './components/PintechLogo';
+import { SetPasswordScreen } from './components/SetPasswordScreen';
 
 export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -27,6 +28,8 @@ export default function App() {
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // true cuando el usuario llega desde el correo de "Olvidé mi contraseña"
+  const [isRecovery, setIsRecovery] = useState<boolean>(false);
 
   const [settings, setSettings] = useState<CompanySettings>(INITIAL_SETTINGS);
 
@@ -38,9 +41,6 @@ export default function App() {
   const defaultMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonthStr);
 
-  // Period Type selector ('full_month' | 'first_half' | 'second_half')
-  const [periodType, setPeriodType] = useState<PeriodType>('full_month');
-
   // Active Tab
   const [currentTab, setCurrentTab] = useState<'calendar' | 'review' | 'gmail' | 'employees' | 'settings'>('calendar');
 
@@ -49,10 +49,13 @@ export default function App() {
     setActiveRole(newRole);
     if (newRole === 'supervisor') {
       setCurrentTab('calendar');
-    } else if (newRole === 'manager') {
-      setCurrentTab((tab) => (tab === 'settings' ? 'calendar' : tab));
     }
   };
+
+  // Permisos de interfaz (la base de datos aplica las mismas reglas)
+  const canRegister = activeRole === 'supervisor' || activeRole === 'manager' || activeRole === 'admin';
+  const canApprove = activeRole === 'manager' || activeRole === 'admin';
+  const isOffice = activeRole !== 'supervisor'; // Jefa, Contador y Admin
 
   // Add Overtime Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,6 +102,7 @@ export default function App() {
         fullName: data?.full_name || authUser.email?.split('@')[0] || 'Usuario',
         role,
         companyId: data?.company_id,
+        mustChangePassword: Boolean(data?.must_change_password),
       });
       applyRole(role);
     } catch (err) {
@@ -115,18 +119,18 @@ export default function App() {
       await action();
     } catch (err: any) {
       setErrorMsg(err?.message || 'Ocurrió un error inesperado. Intente de nuevo.');
-      loadInitialData();
+      loadData();
     }
   };
 
-  // Carga inicial asíncrona de datos desde Supabase
-  const loadInitialData = useCallback(async () => {
+  // Carga los datos del mes seleccionado (las tarifas solo si el rol puede verlas)
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
       const [fetchedEmployees, fetchedRecords, fetchedSettings] = await Promise.all([
-        getEmployees(),
-        getRecords(),
+        getEmployees(activeRole !== 'supervisor'),
+        getRecords(selectedMonth),
         getCompanySettings(),
       ]);
       setEmployees(fetchedEmployees);
@@ -137,7 +141,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [activeRole, selectedMonth]);
 
   // Escuchar sesión de Supabase Auth
   useEffect(() => {
@@ -148,14 +152,13 @@ export default function App() {
           await fetchUserProfile(session.user);
         }
         setIsAuthChecking(false);
-        if (session) loadInitialData();
       });
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         setSession(session);
+        if (event === 'PASSWORD_RECOVERY') setIsRecovery(true);
         if (session?.user) {
           await fetchUserProfile(session.user);
-          loadInitialData();
         } else {
           setUserProfile(null);
           setEmployees([]);
@@ -166,9 +169,14 @@ export default function App() {
       return () => subscription.unsubscribe();
     } else {
       setIsAuthChecking(false);
-      loadInitialData();
     }
-  }, [loadInitialData]);
+  }, []);
+
+  // Recarga cuando cambia el usuario, su rol o el mes
+  const sessionUserId = session?.user?.id;
+  useEffect(() => {
+    if ((sessionUserId && userProfile) || isDemoMode) loadData();
+  }, [loadData, sessionUserId, userProfile?.id, isDemoMode]);
 
   const handleSignOut = async () => {
     if (supabase) {
@@ -239,6 +247,18 @@ export default function App() {
     await runAction(() => verifyAllMonthRecords(selectedMonth));
   };
 
+  // Marca el mes como enviado a contabilidad (bloquea los registros aprobados)
+  const handleMarkMonthSent = async (): Promise<number | null> => {
+    try {
+      const count = await markMonthSent(selectedMonth);
+      await loadData();
+      return count;
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'No se pudo marcar el mes como enviado.');
+      return null;
+    }
+  };
+
   const handleDeleteRecord = async (id: string) => {
     setRecords((prev) => prev.filter((r) => r.id !== id));
     await runAction(() => deleteRecord(id));
@@ -294,15 +314,8 @@ export default function App() {
     }
   };
 
-  // Filtrado de registros por Mes y Periodo Quincenal
-  const monthRecords = records.filter((r) => {
-    if (!r.date.startsWith(selectedMonth)) return false;
-    if (periodType === 'full_month') return true;
-    const day = parseInt(r.date.split('-')[2], 10);
-    if (periodType === 'first_half') return day <= 15;
-    if (periodType === 'second_half') return day >= 16;
-    return true;
-  });
+  // Se trabaja mes a mes (los registros ya vienen cargados solo del mes seleccionado)
+  const monthRecords = records.filter((r) => r.date.startsWith(selectedMonth));
 
   const pendingCount = monthRecords.filter((r) => !r.verifiedByManager).length;
   const verifiedCount = monthRecords.filter((r) => r.verifiedByManager).length;
@@ -339,16 +352,29 @@ export default function App() {
   if (!session && !isDemoMode) {
     return (
       <LoginScreen
-        onLoginSuccess={loadInitialData}
         onContinueOffline={
           import.meta.env.DEV && !isSupabaseConfigured()
             ? () => {
                 setIsDemoMode(true);
                 applyRole('admin');
-                loadInitialData();
               }
             : undefined
         }
+      />
+    );
+  }
+
+  // Contraseña propia obligatoria: primer ingreso o enlace de recuperación
+  if (session && (isRecovery || userProfile?.mustChangePassword)) {
+    return (
+      <SetPasswordScreen
+        email={session.user?.email}
+        isRecovery={isRecovery}
+        onSignOut={handleSignOut}
+        onDone={async () => {
+          setIsRecovery(false);
+          await fetchUserProfile(session.user);
+        }}
       />
     );
   }
@@ -371,8 +397,7 @@ export default function App() {
         userName={userProfile?.fullName || null}
         userRole={activeRole}
         onRoleSwitch={isDemoMode ? applyRole : undefined}
-        periodType={periodType}
-        onPeriodChange={setPeriodType}
+        canRegister={canRegister}
         onOpenAuth={() => setIsDemoMode(false)}
         onSignOut={handleSignOut}
       />
@@ -391,7 +416,7 @@ export default function App() {
         {loadError && (
           <div className="mb-4 flex items-start justify-between gap-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-[8px] text-xs text-red-800 dark:text-red-200">
             <span>{loadError}</span>
-            <button onClick={loadInitialData} className="font-semibold underline shrink-0">
+            <button onClick={loadData} className="font-semibold underline shrink-0">
               Reintentar
             </button>
           </div>
@@ -415,11 +440,13 @@ export default function App() {
             onDeleteRecord={handleDeleteRecord}
             onToggleVerifyRecord={handleToggleVerifyRecord}
             currentUserId={userProfile?.id}
+            rules={settings.overtimeRules}
+            canRegister={canRegister}
           />
         )}
 
         {/* 2. Auditoría: Accesible por Jefa y Contador */}
-        {currentTab === 'review' && activeRole !== 'supervisor' && (
+        {currentTab === 'review' && isOffice && (
           <ManagerReviewView
             records={monthRecords}
             employees={employees}
@@ -435,17 +462,18 @@ export default function App() {
         )}
 
         {/* 3. Formato Gmail & Nómina: Accesible por Jefa y Contador */}
-        {currentTab === 'gmail' && activeRole !== 'supervisor' && (
+        {currentTab === 'gmail' && isOffice && (
           <GmailReportBuilder
             records={monthRecords}
             employees={employees}
             settings={settings}
             selectedMonth={selectedMonth}
+            onMarkMonthSent={handleMarkMonthSent}
           />
         )}
 
         {/* 4. Personal de Planta: Accesible por Jefa y Contador */}
-        {currentTab === 'employees' && activeRole !== 'supervisor' && (
+        {currentTab === 'employees' && isOffice && (
           <EmployeeManager
             employees={employees}
             userRole={activeRole}
@@ -456,8 +484,8 @@ export default function App() {
           />
         )}
 
-        {/* 5. Configuración: Exclusivo para Contador y Administrador */}
-        {currentTab === 'settings' && (activeRole === 'accountant' || activeRole === 'admin') && (
+        {/* 5. Configuración: Jefa, Contador y Administrador */}
+        {currentTab === 'settings' && isOffice && (
           <CompanySettingsView
             settings={settings}
             userRole={activeRole}
@@ -475,7 +503,8 @@ export default function App() {
         initialDate={modalInitialDate}
         onSaveRecords={handleSaveNewRecords}
         rules={settings.overtimeRules}
-        canVerify={activeRole === 'manager' || activeRole === 'admin'}
+        canVerify={canApprove}
+        existingRecords={monthRecords}
       />
 
     </div>

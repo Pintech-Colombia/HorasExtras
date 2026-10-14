@@ -26,10 +26,17 @@ const monthRange = (monthStr: string) => {
   return { start: `${year}-${mm}-01`, end: `${year}-${mm}-${String(lastDay).padStart(2, '0')}` };
 };
 
-export const getRecords = async (): Promise<OvertimeRecord[]> => {
-  if (!supabase) return loadRecords();
+// Carga solo el mes pedido (evita el límite de 1.000 filas por consulta de Supabase)
+export const getRecords = async (monthStr: string): Promise<OvertimeRecord[]> => {
+  if (!supabase) return loadRecords().filter((r) => r.date.startsWith(monthStr));
 
-  const { data, error } = await supabase.from('overtime_records').select('*').order('date', { ascending: false });
+  const { start, end } = monthRange(monthStr);
+  const { data, error } = await supabase
+    .from('overtime_records')
+    .select('*')
+    .gte('date', start)
+    .lte('date', end)
+    .order('date', { ascending: false });
   if (error) fail(error, 'No se pudieron cargar los registros de horas extras.');
   return (data || []).map(fromRow);
 };
@@ -116,4 +123,25 @@ export const verifyAllMonthRecords = async (monthStr: string): Promise<void> => 
     .lte('date', end)
     .eq('verified_by_manager', false);
   if (error) fail(error, 'No se pudo aprobar el mes.');
+};
+
+// Marca como enviados a contabilidad los registros aprobados del mes (quedan bloqueados)
+export const markMonthSent = async (monthStr: string): Promise<number> => {
+  if (!supabase) {
+    let count = 0;
+    saveRecords(
+      loadRecords().map((r) => {
+        if (r.date.startsWith(monthStr) && r.status === 'verified_manager') {
+          count++;
+          return { ...r, status: 'sent_accountant' as const };
+        }
+        return r;
+      })
+    );
+    return count;
+  }
+
+  const { data, error } = await supabase.rpc('mark_month_sent', { p_month: monthStr });
+  if (error) fail(error, 'No se pudo marcar el mes como enviado.');
+  return Number(data) || 0;
 };

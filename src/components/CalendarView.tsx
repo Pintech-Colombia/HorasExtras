@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, CheckCircle2, Clock, AlertCircle, Filter, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Info } from 'lucide-react';
-import { OvertimeRecord, Employee, OVERTIME_TYPES, UserRole } from '../types';
-import { getWorkScheduleForDate, formatHoursDisplay } from '../utils/schedule';
+import { OvertimeRecord, Employee, OVERTIME_TYPES, UserRole, OvertimeRules } from '../types';
+import { formatHoursDisplay, formatTime12h } from '../utils/schedule';
 import { getHolidayName } from '../utils/holidays';
 
 interface CalendarViewProps {
@@ -14,6 +14,8 @@ interface CalendarViewProps {
   onDeleteRecord: (id: string) => void;
   onToggleVerifyRecord: (id: string) => void;
   currentUserId?: string;
+  rules: OvertimeRules;
+  canRegister: boolean;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -26,8 +28,28 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onDeleteRecord,
   onToggleVerifyRecord,
   currentUserId,
+  rules,
+  canRegister,
 }) => {
-  const canAudit = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
+  // Solo la Jefa (y el Admin) aprueban
+  const canAudit = userRole === 'manager' || userRole === 'admin';
+
+  // Resumen de la jornada según Configuración (agrupa los días con la misma salida)
+  const DAY_LABELS: Record<string, string> = { '1': 'Lun', '2': 'Mar', '3': 'Mié', '4': 'Jue', '5': 'Vie', '6': 'Sáb' };
+  const scheduleGroups: { days: string[]; end: string | null }[] = [];
+  ['1', '2', '3', '4', '5', '6'].forEach((d) => {
+    const end = rules.shiftEnds[d] || null;
+    const group = scheduleGroups.find((g) => g.end === end);
+    if (group) group.days.push(DAY_LABELS[d]);
+    else scheduleGroups.push({ days: [DAY_LABELS[d]], end });
+  });
+  const workingGroups = scheduleGroups.filter((g) => g.end);
+  const offDays = scheduleGroups.filter((g) => !g.end).flatMap((g) => g.days);
+  // Salida más común (para resaltar los días con horario distinto)
+  const mainEnd = workingGroups.reduce<{ days: string[]; end: string | null } | null>(
+    (best, g) => (!best || g.days.length > best.days.length ? g : best),
+    null
+  )?.end;
   // Jefa/Admin borran cualquier registro; el supervisor solo sus propios registros pendientes
   const canDeleteRecord = (rec: OvertimeRecord) =>
     userRole === 'manager' ||
@@ -93,8 +115,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   // Day records for detail modal/sidebar
   const activeDateRecords = selectedDate ? recordsByDate.get(selectedDate) || [] : [];
-  const selectedDateSchedule = selectedDate ? getWorkScheduleForDate(selectedDate) : null;
-
+  
   return (
     <div className="space-y-6">
       {/* Vercel Polarity-Flipped Dark Band (Schedule Info) */}
@@ -108,9 +129,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               Jornada Ordinaria Oficial Pintech
             </span>
             <p className="text-sm text-[#ededed] mt-0.5 tracking-tight font-medium">
-              <span className="text-white">Lun, Mar, Jue, Vie:</span> 7:30 AM – 5:00 PM &nbsp;•&nbsp;
-              <span className="text-white">Mié:</span> 7:30 AM – 4:30 PM &nbsp;•&nbsp;
-              <span className="text-[#888888]">Sáb y Dom:</span> No laboral
+              {workingGroups.map((g) => (
+                <span key={g.days.join()}>
+                  <span className="text-white">{g.days.join(', ')}:</span> {formatTime12h(rules.shiftStart)} – {formatTime12h(g.end)} &nbsp;•&nbsp;
+                </span>
+              ))}
+              <span className="text-[#888888]">{[...offDays, 'Dom'].join(' y ')} y festivos:</span> todo es extra
             </p>
           </div>
         </div>
@@ -184,7 +208,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <div className="grid grid-cols-7 text-center font-mono-tech text-[11px] text-[#888888] uppercase tracking-wider border-b border-[#ebebeb] dark:border-[#262626] pb-3 mb-3">
             <span>Lun</span>
             <span>Mar</span>
-            <span className="text-[#171717] dark:text-white font-bold" title="Salida 4:30 PM">Mié</span>
+            <span>Mié</span>
             <span>Jue</span>
             <span>Vie</span>
             <span className="text-[#a1a1a1] dark:text-[#555555]">Sáb</span>
@@ -209,7 +233,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               const dayOfWeek = new Date(year, month - 1, dayNum).getDay();
               const holidayName = getHolidayName(dateStr);
               const isWeekend = dayOfWeek === 0 || Boolean(holidayName);
-              const isWednesday = dayOfWeek === 3;
+              const dayEnd = dayOfWeek === 0 ? null : rules.shiftEnds[String(dayOfWeek)] || null;
+              const hasDifferentEnd = Boolean(dayEnd && mainEnd && dayEnd !== mainEnd && !holidayName);
 
               return (
                 <div
@@ -240,10 +265,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       {dayNum}
                     </span>
 
-                    {/* Wed Indicator */}
-                    {isWednesday && dayRecords.length === 0 && (
-                      <span className="font-mono-tech text-[9px] text-[#888888]">
-                        4:30p
+                    {/* Indicador de día con salida distinta */}
+                    {hasDifferentEnd && dayRecords.length === 0 && (
+                      <span className="font-mono-tech text-[9px] text-[#888888] hidden sm:inline">
+                        {formatTime12h(dayEnd)}
                       </span>
                     )}
 
@@ -278,6 +303,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </div>
 
                   {/* Add button on hover */}
+                  {canRegister && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -288,6 +314,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <Plus className="w-3 h-3" />
                     <span>Tachar</span>
                   </button>
+                  )}
                 </div>
               );
             })}
@@ -305,7 +332,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 </h3>
               </div>
 
-              {selectedDate && (
+              {selectedDate && canRegister && (
                 <button
                   onClick={() => onAddForDate(selectedDate)}
                   className="h-7 px-2.5 rounded-[6px] bg-[#171717] dark:bg-white text-white dark:text-[#171717] text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
@@ -324,6 +351,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             ) : activeDateRecords.length === 0 ? (
               <div className="text-center py-10 text-[#888888] space-y-3 bg-[#fafafa] dark:bg-[#111111] rounded-[8px] p-4 border border-dashed border-[#ebebeb] dark:border-[#262626]">
                 <p className="text-xs font-mono-tech">0 horas registradas</p>
+                {canRegister && (
                 <button
                   onClick={() => onAddForDate(selectedDate)}
                   className="h-8 px-3 rounded-full bg-[#171717] dark:bg-white text-white dark:text-[#171717] text-xs font-medium inline-flex items-center gap-1 cursor-pointer"
@@ -331,6 +359,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <Plus className="w-3.5 h-3.5" />
                   <span>Registrar Horas Extras</span>
                 </button>
+                )}
               </div>
             ) : (
               <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">

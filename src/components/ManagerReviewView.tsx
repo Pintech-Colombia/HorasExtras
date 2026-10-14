@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { CheckCircle2, AlertCircle, UserCheck, Search, ShieldCheck, DollarSign, Clock, CheckCheck, Trash2, Edit2, Save, X } from 'lucide-react';
-import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES, UserRole } from '../types';
+import { CheckCircle2, AlertCircle, UserCheck, Search, ShieldCheck, DollarSign, Clock, CheckCheck, Trash2, Edit2, Save, X, Lock, AlertTriangle } from 'lucide-react';
+import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES, OvertimeType, UserRole } from '../types';
 import { calculateRecordCost, formatCurrency } from '../utils/exporters';
-import { formatHoursDisplay } from '../utils/schedule';
+import { formatHoursDisplay, getDailyOvertimeAlerts } from '../utils/schedule';
 
 interface ManagerReviewViewProps {
   records: OvertimeRecord[];
@@ -29,7 +29,9 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
   onUpdateRecord,
   onGoToGmailReport,
 }) => {
-  const canSeeCosts = userRole === 'accountant' || userRole === 'admin';
+  const canSeeCosts = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
+  // Solo la Jefa (y el Admin) aprueban, editan y borran
+  const canEdit = userRole === 'manager' || userRole === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'verified'>('all');
   const [filterEmployee, setFilterEmployee] = useState('all');
@@ -38,6 +40,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editHours, setEditHours] = useState<number>(0);
   const [editNotes, setEditNotes] = useState<string>('');
+  const [editType, setEditType] = useState<OvertimeType>('diurna');
 
   const employeesMap = new Map<string, Employee>(employees.map((e) => [e.id, e]));
 
@@ -65,17 +68,21 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
   const verifiedHours = verifiedRecords.reduce((sum, r) => sum + r.hours, 0);
   const pendingRecords = monthRecords.filter((r) => !r.verifiedByManager);
   const totalSurchargeVal = monthRecords.reduce((sum, r) => sum + calculateRecordCost(r, employeesMap), 0);
+  // Empleados con más de 2 h extra en un día ordinario
+  const dailyAlerts = getDailyOvertimeAlerts(monthRecords, settings.overtimeRules);
 
   const startInlineEdit = (rec: OvertimeRecord) => {
     setEditingId(rec.id);
     setEditHours(rec.hours);
     setEditNotes(rec.notes || '');
+    setEditType(rec.type);
   };
 
   const saveInlineEdit = (id: string) => {
     onUpdateRecord(id, {
       hours: editHours,
       notes: editNotes,
+      type: editType,
     });
     setEditingId(null);
   };
@@ -100,7 +107,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {pendingRecords.length > 0 && (
+            {canEdit && pendingRecords.length > 0 && (
               <button
                 onClick={onVerifyAllMonth}
                 className="bg-white hover:bg-neutral-100 text-[#171717] text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2 transition-all shadow-vercel-subtle"
@@ -150,7 +157,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
           <div className="bg-[#202020] rounded-[10px] p-3.5 border border-[#2d2d2d]">
             <span className="caption-mono text-[10px] text-neutral-400 flex items-center gap-1">
               <DollarSign className="w-3 h-3 text-neutral-400" />
-              {canSeeCosts ? 'Est. Recargos' : 'Liquidación'}
+              {canSeeCosts ? 'Valor Est. Extras' : 'Liquidación'}
             </span>
             <p className="font-mono text-xl font-semibold text-white mt-1.5 tracking-tight">
               {canSeeCosts ? formatCurrency(totalSurchargeVal, settings.currencySymbol) : 'Confidencial'}
@@ -230,7 +237,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                 <th className="caption-mono px-4 py-3 text-[11px]">Empleado</th>
                 <th className="caption-mono px-4 py-3 text-[11px]">Tipo de Extra</th>
                 <th className="caption-mono px-4 py-3 text-[11px] text-center">Horas</th>
-                <th className="caption-mono px-4 py-3 text-[11px] text-right">Recargo Est.</th>
+                <th className="caption-mono px-4 py-3 text-[11px] text-right">Valor Est.</th>
                 <th className="caption-mono px-4 py-3 text-[11px]">Observaciones / Motivo</th>
                 <th className="caption-mono px-4 py-3 text-[11px] text-right">Acciones</th>
               </tr>
@@ -247,6 +254,8 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                   const typeInfo = OVERTIME_TYPES[rec.type];
                   const isEditing = editingId === rec.id;
                   const cost = calculateRecordCost(rec, employeesMap);
+                  const isSent = rec.status === 'sent_accountant';
+                  const dayAlert = dailyAlerts.get(`${rec.employeeId}|${rec.date}`);
 
                   return (
                     <tr
@@ -264,7 +273,12 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                               : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'
                           }`}
                         >
-                          {rec.verifiedByManager ? (
+                          {isSent ? (
+                            <>
+                              <Lock className="w-3 h-3 text-neutral-700 dark:text-neutral-300" />
+                              <span>Enviado</span>
+                            </>
+                          ) : rec.verifiedByManager ? (
                             <>
                               <CheckCircle2 className="w-3 h-3 text-neutral-700 dark:text-neutral-300" />
                               <span>Verificado</span>
@@ -291,9 +305,23 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
 
                       {/* Type */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded-[4px] border text-[10px] font-medium ${typeInfo.badgeBg} ${typeInfo.badgeText} border-transparent`}>
-                          {typeInfo.label}
-                        </span>
+                        {isEditing ? (
+                          <select
+                            value={editType}
+                            onChange={(e) => setEditType(e.target.value as OvertimeType)}
+                            className="form-input text-xs h-7 px-2 rounded-[4px]"
+                          >
+                            {(Object.keys(OVERTIME_TYPES) as OvertimeType[]).map((t) => (
+                              <option key={t} value={t}>
+                                {OVERTIME_TYPES[t].label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className={`px-2 py-0.5 rounded-[4px] border text-[10px] font-medium ${typeInfo.badgeBg} ${typeInfo.badgeText} border-transparent`}>
+                            {typeInfo.label}
+                          </span>
+                        )}
                       </td>
 
                       {/* Hours */}
@@ -309,6 +337,15 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                           />
                         ) : (
                           <span className="font-semibold text-xs text-neutral-900 dark:text-neutral-100">{formatHoursDisplay(rec.hours)}</span>
+                        )}
+                        {dayAlert && (
+                          <span
+                            className="flex items-center justify-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 mt-0.5"
+                            title={`Este empleado suma ${formatHoursDisplay(dayAlert)} extra este día (límite habitual: 2 h)`}
+                          >
+                            <AlertTriangle className="w-3 h-3" />
+                            {formatHoursDisplay(dayAlert)} día
+                          </span>
                         )}
                       </td>
 
@@ -340,7 +377,9 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                       {/* Action buttons */}
                       <td className="px-4 py-3 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {isEditing ? (
+                          {!canEdit || (isSent && userRole !== 'admin') ? (
+                            <span className="text-[10px] text-neutral-400">{isSent ? 'Bloqueado' : '—'}</span>
+                          ) : isEditing ? (
                             <>
                               <button
                                 onClick={() => saveInlineEdit(rec.id)}

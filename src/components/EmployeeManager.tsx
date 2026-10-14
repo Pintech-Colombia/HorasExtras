@@ -31,7 +31,9 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
   onUpdateEmployee,
   onDeleteEmployee,
 }) => {
-  const canManageSalaries = userRole === 'accountant' || userRole === 'admin';
+  // Jefa y Admin gestionan empleados; Jefa, Contador y Admin gestionan el valor hora
+  const canEditEmployees = userRole === 'manager' || userRole === 'admin';
+  const canManageSalaries = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -72,7 +74,10 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
     e.preventDefault();
     if (!name.trim()) return;
 
-    if (editingEmployee) {
+    if (editingEmployee && !canEditEmployees) {
+      // El Contador solo puede cambiar el valor hora
+      onUpdateEmployee(editingEmployee.id, { baseHourlyRate });
+    } else if (editingEmployee) {
       onUpdateEmployee(editingEmployee.id, {
         name,
         documentId,
@@ -205,7 +210,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
             className="hidden"
           />
 
-          {canManageSalaries && (
+          {canEditEmployees && (
             <>
               <button
                 onClick={handleDownloadTemplate}
@@ -282,7 +287,8 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
 
                 {/* Active / Inactive Badge with Toggle click */}
                 <button
-                  onClick={() => onUpdateEmployee(emp.id, { active: !emp.active })}
+                  onClick={() => canEditEmployees && onUpdateEmployee(emp.id, { active: !emp.active })}
+                  disabled={!canEditEmployees}
                   className={`caption-mono text-[10px] px-2.5 py-0.5 rounded-full border transition cursor-pointer ${
                     emp.active
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
@@ -324,15 +330,17 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
+              {canManageSalaries && (
               <button
                 onClick={() => openEditModal(emp)}
                 className="text-xs text-neutral-700 dark:text-neutral-300 font-medium px-2.5 py-1 rounded-[6px] bg-neutral-100 dark:bg-neutral-800 flex items-center gap-1 transition hover:bg-neutral-200 dark:hover:bg-neutral-700"
               >
                 <Edit className="w-3 h-3" />
-                <span>Editar</span>
+                <span>{canEditEmployees ? 'Editar' : 'Valor hora'}</span>
               </button>
+              )}
 
-              {userRole === 'admin' && (
+              {canEditEmployees && (
               <button
                 title="Solo se puede eliminar un empleado sin horas registradas. Si tiene historial, márquelo como inactivo."
                 onClick={() => {
@@ -369,7 +377,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                 <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                   Nombre Completo *
                 </label>
-                <input
+                <input disabled={!canEditEmployees}
                   type="text"
                   required
                   placeholder="Ej. Carlos Alberto Mendoza"
@@ -383,7 +391,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                 <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                   Número de Cédula / Documento *
                 </label>
-                <input
+                <input disabled={!canEditEmployees}
                   type="text"
                   required
                   placeholder="Ej. 1020304050"
@@ -398,7 +406,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                   <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                     Cargo *
                   </label>
-                  <input
+                  <input disabled={!canEditEmployees}
                     type="text"
                     required
                     placeholder="Ej. Técnico Inyección"
@@ -412,7 +420,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                   <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                     Área / Depto *
                   </label>
-                  <select
+                  <select disabled={!canEditEmployees}
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
