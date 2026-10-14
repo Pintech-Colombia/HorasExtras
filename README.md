@@ -113,7 +113,9 @@ Abre tu navegador en `http://localhost:3000` (o el puerto indicado en la consola
 > Verifique el NIT y el correo del contador al final de `supabase/schema.sql` antes de ejecutarlo.
 
 1. Cree un proyecto en [Supabase](https://supabase.com) (plan gratuito). Use un proyecto **separado** para pruebas.
-2. En **SQL Editor**, ejecute todo [`supabase/schema.sql`](./supabase/schema.sql).
+   - **Si reanuda un proyecto pausado** con la versión anterior: descargue un respaldo y ejecute primero
+     [`supabase/reset_v1.sql`](./supabase/reset_v1.sql) (borra las tablas viejas; conserva los usuarios de Authentication).
+2. En **SQL Editor**, ejecute todo [`supabase/schema.sql`](./supabase/schema.sql). Los usuarios que ya existían quedan como `supervisor`.
 3. En **Authentication → Sign In / Providers**, desactive *Allow new users to sign up* (nadie puede registrarse solo).
 4. En **Authentication → Users → Invite user**, invite a cada persona. Todos nacen con rol `supervisor`.
 5. Asigne los roles en el SQL Editor:

@@ -396,6 +396,17 @@ insert into public.companies (name, nit, manager_name, manager_title, accountant
 select 'Pintech Colombia S.A.S.', '901.123.507-9', 'Lorena Vargas', 'Jefa de Producción', 'Omar (Contador)', 'contabilidad@pintech.co'
 where not exists (select 1 from public.companies);
 
+-- 13. PERFILES PARA USUARIOS QUE YA EXISTÍAN (proyecto reanudado) -------------
+-- Todos quedan como 'supervisor'; luego el admin asigna los roles.
+insert into public.profiles (id, company_id, full_name, email, role)
+select u.id,
+       (select id from public.companies order by created_at asc limit 1),
+       coalesce(nullif(u.raw_user_meta_data->>'full_name', ''), split_part(u.email, '@', 1)),
+       u.email,
+       'supervisor'
+from auth.users u
+where not exists (select 1 from public.profiles p where p.id = u.id);
+
 -- ==============================================================================
 -- DESPUÉS DE EJECUTAR:
 -- 1. Authentication > Sign In / Providers: desactive "Allow new users to sign up".
