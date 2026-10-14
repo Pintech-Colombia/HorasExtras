@@ -17,11 +17,23 @@ function DialogOverlay({ className, ...props }: React.ComponentProps<typeof Dial
   );
 }
 
+// En pantallas táctiles no se enfoca el primer campo al abrir: abriría el teclado o el selector
+// de fecha sin que la persona lo pidiera. Se enfoca la ventana (accesible igual con lector de pantalla).
+function touchSafeOpenAutoFocus(onOpenAutoFocus?: (e: Event) => void) {
+  return (e: Event) => {
+    onOpenAutoFocus?.(e);
+    if (e.defaultPrevented || !window.matchMedia('(pointer: coarse)').matches) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement | null)?.focus({ preventScroll: true });
+  };
+}
+
 // Ventana modal accesible: cierra con Esc, bloquea el scroll del fondo y mantiene el foco adentro
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }) {
   return (
@@ -33,6 +45,7 @@ function DialogContent({
           'fixed left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-vercel-modal outline-none',
           className
         )}
+        onOpenAutoFocus={touchSafeOpenAutoFocus(onOpenAutoFocus)}
         {...props}
       >
         {children}
@@ -79,4 +92,5 @@ function DialogDescription({ className, ...props }: React.ComponentProps<typeof 
   );
 }
 
+export { touchSafeOpenAutoFocus };
 export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription };
