@@ -13,6 +13,9 @@ create table if not exists public.employee_rates (
   updated_at timestamptz default now()
 );
 
+-- Cerrada desde el inicio; schema.sql define quién puede leerla
+alter table public.employee_rates enable row level security;
+
 do $$
 begin
   if exists (select 1 from information_schema.columns
