@@ -72,7 +72,7 @@ export function Navbar() {
                 <span>pendientes</span>
                 <span className="text-border">/</span>
                 <span className="font-semibold text-foreground">{verifiedCount}</span>
-                <span>auditadas</span>
+                <span>aprobadas</span>
               </div>
             )}
 

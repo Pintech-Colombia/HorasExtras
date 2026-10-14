@@ -24,3 +24,8 @@ export const TYPE_STYLES: Record<OvertimeType, { dot: string; chip: string; shor
     short: 'Festiva nocturna',
   },
 };
+
+// Etiqueta corta con el porcentaje vigente, p. ej. "Festiva diurna · 115%"
+export function typeShortLabel(type: OvertimeType, multiplier: number): string {
+  return `${TYPE_STYLES[type].short} · ${Number(((multiplier - 1) * 100).toFixed(2))}%`;
+}

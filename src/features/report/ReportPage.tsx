@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useEmployees } from '@/features/employees/queries';
 import { useMarkMonthSent, useMonthRecords } from '@/features/records/queries';
@@ -11,6 +12,7 @@ export function ReportPage() {
   const { employees } = useEmployees();
   const { settings } = useCompanySettings();
   const markSent = useMarkMonthSent();
+  const navigate = useNavigate();
 
   const handleMarkSent = async () => {
     try {
@@ -29,6 +31,7 @@ export function ReportPage() {
       settings={settings}
       selectedMonth={month}
       onMarkMonthSent={handleMarkSent}
+      onGoToReview={() => navigate({ pathname: '/auditoria', search: window.location.search })}
     />
   );
 }
