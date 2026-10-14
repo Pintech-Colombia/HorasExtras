@@ -1,487 +1,298 @@
-import React, { useState, useRef } from 'react';
-import { Users, UserPlus, Edit, Trash2, Search, DollarSign, Building, FileText, Upload, Download, CheckCircle2, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { ChevronDown, Download, Search, Upload, UserPlus } from 'lucide-react';
 import { Employee, UserRole } from '@/types';
-import { formatCurrency } from '@/lib/exporters';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
-import { useConfirm } from '@/components/ui/confirm';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { cn } from '@/lib/utils';
+import { CSV_TEMPLATE_HEADER, parseEmployeesCsv } from './csvImport';
+import { EmployeeFormDialog, EmployeeDraft } from './EmployeeFormDialog';
+import { EmployeeActions, EmployeeCards, EmployeeTable } from './EmployeeList';
 
 interface EmployeeManagerProps {
   employees: Employee[];
   userRole?: UserRole | null;
-  onAddEmployee: (emp: Omit<Employee, 'id'>) => void;
-  onAddMultipleEmployees: (emps: Omit<Employee, 'id'>[]) => Promise<boolean>;
+  onAddEmployee: (emp: EmployeeDraft) => void;
+  onAddMultipleEmployees: (emps: EmployeeDraft[]) => Promise<boolean>;
   onUpdateEmployee: (id: string, updated: Partial<Employee>) => void;
   onDeleteEmployee: (id: string) => void;
 }
 
-const PINTECH_DEPARTMENTS = [
-  'Operaciones',
-  'Inyección',
-  'Ensamble',
-  'Mantenimiento',
-  'Calidad',
-  'Logística',
-  'Empaque',
-  'Administración',
+type StatusFilter = 'all' | 'active' | 'inactive';
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'active', label: 'Activos' },
+  { key: 'inactive', label: 'Inactivos' },
 ];
 
-export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
+export function EmployeeManager({
   employees,
   userRole,
   onAddEmployee,
   onAddMultipleEmployees,
   onUpdateEmployee,
   onDeleteEmployee,
-}) => {
+}: EmployeeManagerProps) {
   const confirm = useConfirm();
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   // Jefa y Admin gestionan empleados; Jefa, Contador y Admin gestionan el valor hora
   const canEditEmployees = userRole === 'manager' || userRole === 'admin';
   const canManageSalaries = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Employee | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form State
-  const [name, setName] = useState('');
-  const [documentId, setDocumentId] = useState('');
-  const [position, setPosition] = useState('');
-  const [department, setDepartment] = useState('Inyección');
-  const [baseHourlyRate, setBaseHourlyRate] = useState<number>(0);
-  const [active, setActive] = useState(true);
+  const sorted = useMemo(() => [...employees].sort((a, b) => a.name.localeCompare(b.name, 'es')), [employees]);
+  const departments = useMemo(
+    () => [...new Set(employees.map((e) => e.department))].sort((a, b) => a.localeCompare(b, 'es')),
+    [employees]
+  );
 
-  const openAddModal = () => {
-    setEditingEmployee(null);
-    setName('');
-    setDocumentId('');
-    setPosition('');
-    setDepartment('Inyección');
-    setBaseHourlyRate(0);
-    setActive(true);
-    setIsModalOpen(true);
+  const term = search.trim().toLowerCase();
+  const filtered = sorted
+    .filter((e) => statusFilter === 'all' || (statusFilter === 'active') === e.active)
+    .filter((e) => deptFilter === 'all' || e.department === deptFilter)
+    .filter(
+      (e) =>
+        !term ||
+        e.name.toLowerCase().includes(term) ||
+        e.documentId.includes(term) ||
+        e.position.toLowerCase().includes(term) ||
+        e.department.toLowerCase().includes(term)
+    );
+
+  const activeCount = employees.filter((e) => e.active).length;
+  const withoutRate = employees.filter((e) => e.active && !e.baseHourlyRate).length;
+  const counts: Record<StatusFilter, number> = {
+    all: employees.length,
+    active: activeCount,
+    inactive: employees.length - activeCount,
   };
 
-  const openEditModal = (emp: Employee) => {
-    setEditingEmployee(emp);
-    setName(emp.name);
-    setDocumentId(emp.documentId);
-    setPosition(emp.position);
-    setDepartment(emp.department);
-    setBaseHourlyRate(emp.baseHourlyRate);
-    setActive(emp.active);
-    setIsModalOpen(true);
+  const openForm = (emp: Employee | null) => {
+    setEditing(emp);
+    setFormOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
+  const handleSave = (draft: EmployeeDraft) => {
+    if (!editing) onAddEmployee(draft);
+    else if (canEditEmployees) onUpdateEmployee(editing.id, draft);
+    else onUpdateEmployee(editing.id, { baseHourlyRate: draft.baseHourlyRate }); // Contador: solo valor hora
+  };
 
-    if (editingEmployee && !canEditEmployees) {
-      // El Contador solo puede cambiar el valor hora
-      onUpdateEmployee(editingEmployee.id, { baseHourlyRate });
-    } else if (editingEmployee) {
-      onUpdateEmployee(editingEmployee.id, {
-        name,
-        documentId,
-        position,
-        department,
-        baseHourlyRate,
-        active,
+  const actions: EmployeeActions = {
+    canEditEmployees,
+    canManageSalaries,
+    onEdit: openForm,
+    onToggleActive: (emp) => onUpdateEmployee(emp.id, { active: !emp.active }),
+    onDelete: async (emp) => {
+      const ok = await confirm({
+        title: `¿Eliminar a ${emp.name}?`,
+        description: 'Solo se puede eliminar si no tiene horas registradas. Si tiene historial, márcalo como inactivo.',
+        confirmText: 'Eliminar',
+        destructive: true,
       });
-    } else {
-      onAddEmployee({
-        name,
-        documentId,
-        position,
-        department,
-        baseHourlyRate,
-        active,
-      });
-    }
-
-    setIsModalOpen(false);
+      if (ok) onDeleteEmployee(emp.id);
+    },
   };
 
-  // Carga Masiva desde CSV
-  const handleCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const text = event.target?.result as string;
-        if (!text) return;
-
-        const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-        if (lines.length <= 1) {
-          setImportStatus('El archivo está vacío o solo contiene encabezados.');
-          return;
-        }
-
-        const newEmployees: Omit<Employee, 'id'>[] = [];
-        // Saltar encabezado i = 1
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
-          // Cédula y nombre son obligatorios (no se inventan documentos)
-          if (cols.length >= 2 && cols[0] && cols[1]) {
-            newEmployees.push({
-              documentId: cols[0],
-              name: cols[1],
-              position: cols[2] || 'Operario de Planta',
-              department: cols[3] || 'Operaciones',
-              baseHourlyRate: parseFloat(cols[4]) || 0,
-              active: true,
-            });
-          }
-        }
-
-        if (newEmployees.length > 0) {
-          const ok = await onAddMultipleEmployees(newEmployees);
-          if (ok) {
-            setImportStatus(`¡Éxito! Se importaron ${newEmployees.length} empleados correctamente.`);
-            setTimeout(() => setImportStatus(null), 4000);
-          } else {
-            setImportStatus('No se importó ningún empleado. Revise el mensaje de error (por ejemplo, cédulas repetidas).');
-          }
-        } else {
-          setImportStatus('No se encontraron registros válidos en el archivo CSV.');
-        }
-      } catch (err: any) {
-        setImportStatus('Error al leer el archivo CSV: ' + err.message);
-      } finally {
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // Descargar Plantilla CSV
-  const handleDownloadTemplate = () => {
-    const csvContent =
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      // Solo encabezados: así nunca se importan empleados de ejemplo por error
-      'cedula,nombre,cargo,departamento,tarifa_hora\n';
-
-    const encodedUri = encodeURI(csvContent);
+  // Plantilla con ";" y BOM para que Excel en español la abra en columnas y con tildes
+  const downloadTemplate = () => {
+    const blob = new Blob(['﻿' + CSV_TEMPLATE_HEADER + '\n'], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'plantilla_empleados_pintech.csv');
+    link.href = url;
+    link.download = 'plantilla_empleados_pintech.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  const filteredEmployees = employees.filter((emp) => {
-    const term = searchTerm.toLowerCase();
-    return (
-      emp.name.toLowerCase().includes(term) ||
-      emp.documentId.includes(term) ||
-      emp.position.toLowerCase().includes(term) ||
-      emp.department.toLowerCase().includes(term)
-    );
-  });
+  const importCsv = async (file: File) => {
+    const { employees: parsed, skippedLines } = parseEmployeesCsv(await file.text());
+    // Cédulas que ya existen (o repetidas en el mismo archivo) se omiten en vez de frenar toda la carga
+    const known = new Set(employees.map((e) => e.documentId.trim()));
+    const fresh = parsed.filter((e) => !known.has(e.documentId) && known.add(e.documentId));
+    const duplicated = parsed.length - fresh.length;
+
+    if (fresh.length === 0) {
+      toast.error(
+        parsed.length > 0
+          ? 'Todas las cédulas del archivo ya existen. No se importó nada.'
+          : 'El archivo no tiene filas válidas. Usa la plantilla: cédula y nombre son obligatorios.'
+      );
+      return;
+    }
+    const ok = await onAddMultipleEmployees(fresh);
+    if (ok && (duplicated > 0 || skippedLines.length > 0)) {
+      toast.warning(
+        [
+          duplicated > 0 && `${duplicated} cédula(s) ya existían y se omitieron.`,
+          skippedLines.length > 0 && `Filas sin cédula o nombre: ${skippedLines.join(', ')}.`,
+        ]
+          .filter(Boolean)
+          .join(' ')
+      );
+    }
+  };
+
+  const stats = [
+    { label: 'Empleados', value: String(employees.length) },
+    { label: 'Activos', value: String(activeCount) },
+    { label: 'Inactivos', value: String(employees.length - activeCount) },
+    ...(canManageSalaries
+      ? [{ label: 'Activos sin valor hora', value: String(withoutRate), highlight: withoutRate > 0 }]
+      : []),
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="bg-white dark:bg-[#111111] rounded-[12px] p-6 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-card flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="caption-mono bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-[11px] px-2.5 py-0.5 rounded-[6px] border border-neutral-200 dark:border-neutral-700 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-300" />
-              Gestión de Personal
-            </span>
+    <div className="flex flex-col gap-4">
+      {/* Encabezado */}
+      <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-vercel-card sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold sm:text-xl">Personal</h2>
+            <p className="text-sm text-muted-foreground">
+              {canEditEmployees
+                ? 'Empleados que pueden tener horas extras, con su cargo, área y valor hora.'
+                : 'Consulta del personal. Puedes actualizar el valor hora de cada empleado.'}
+            </p>
           </div>
-          <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white mt-2 tracking-display-md">
-            Personal y Operarios Pintech
-          </h2>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 font-sans">
-            Administra los empleados por área (Inyección, Ensamble, Calidad, etc.), documentos y tarifas horarias.
-          </p>
-        </div>
-
-        {/* Actions Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Hidden File Input for CSV */}
-          <input
-            type="file"
-            accept=".csv"
-            ref={fileInputRef}
-            onChange={handleCsvFileUpload}
-            className="hidden"
-          />
-
           {canEditEmployees && (
-            <>
-              <Button variant="outline"
-                onClick={handleDownloadTemplate}
-                className="text-xs font-medium px-3.5 py-2 flex items-center gap-1.5"
-                title="Descargar archivo Excel / CSV de ejemplo"
-              >
-                <Download className="w-3.5 h-3.5 text-neutral-500" />
-                <span>Plantilla CSV</span>
+            <div className="flex w-full gap-2 sm:w-auto">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void importCsv(file);
+                }}
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex-1 sm:flex-none">
+                    <Upload /> Importar <ChevronDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={downloadTemplate}>
+                    <Download /> Descargar plantilla
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                    <Upload /> Subir archivo CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button className="flex-1 sm:flex-none" onClick={() => openForm(null)}>
+                <UserPlus /> Nuevo empleado
               </Button>
-
-              <Button variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs font-medium px-3.5 py-2 flex items-center gap-1.5"
-                title="Importar lista de personal masivamente"
-              >
-                <Upload className="w-3.5 h-3.5 text-neutral-700 dark:text-neutral-300" />
-                <span>Importar CSV</span>
-              </Button>
-
-              <Button
-                onClick={openAddModal}
-                className="text-xs font-medium px-4 py-2 flex items-center gap-2"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Nuevo Empleado</span>
-              </Button>
-            </>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Import Status Alert */}
-      {importStatus && (
-        <div className="p-3.5 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-[10px] text-xs text-neutral-800 dark:text-neutral-200 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span>{importStatus}</span>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-lg border bg-muted/40 px-3 py-2.5">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className={cn('mt-0.5 font-mono text-base font-semibold sm:text-lg', s.highlight && 'text-warning')}>
+                {s.value}
+              </p>
+            </div>
+          ))}
         </div>
-      )}
+      </section>
 
-      {/* Search Bar */}
-      <div className="bg-white dark:bg-[#111111] p-3 rounded-[12px] border border-[#ebebeb] dark:border-[#262626] shadow-vercel-subtle flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:max-w-md">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-neutral-400" />
+      {/* Filtros */}
+      <section className="flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-vercel-subtle lg:flex-row lg:items-center">
+        <div className="relative lg:w-80">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            type="text"
-            placeholder="Buscar por nombre, cédula, cargo o área..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full text-xs pl-9 pr-3 h-9"
+            placeholder="Buscar nombre, cédula o cargo"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
           />
         </div>
-
-        <div className="caption-mono text-xs text-neutral-500 dark:text-neutral-400">
-          Total: <strong className="font-mono text-neutral-900 dark:text-white font-semibold">{employees.length}</strong> empleados ({employees.filter(e => e.active).length} activos)
+        <div className="flex gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setStatusFilter(f.key)}
+              className={cn(
+                'flex-1 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors lg:flex-none',
+                statusFilter === f.key
+                  ? 'bg-card text-foreground shadow-vercel-subtle'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {f.label} ({counts[f.key]})
+            </button>
+          ))}
         </div>
-      </div>
+        <NativeSelect
+          aria-label="Filtrar por área"
+          value={deptFilter}
+          onChange={(e) => setDeptFilter(e.target.value)}
+          wrapperClassName="lg:ml-auto lg:w-52"
+        >
+          <option value="all">Todas las áreas</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </NativeSelect>
+      </section>
 
-      {/* Employees Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredEmployees.map((emp) => (
-          <div
-            key={emp.id}
-            className="bg-white dark:bg-[#111111] rounded-[12px] p-5 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-card flex flex-col justify-between space-y-4 hover:border-neutral-300 dark:hover:border-neutral-700 transition-all"
-          >
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-neutral-900 dark:text-white text-sm tracking-tight">{emp.name}</h3>
-                  <span className="caption-mono text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
-                    <FileText className="w-3 h-3 text-neutral-400" />
-                    CC {emp.documentId || 'Sin registrar'}
-                  </span>
-                </div>
-
-                {/* Active / Inactive Badge with Toggle click */}
-                <button
-                  onClick={() => canEditEmployees && onUpdateEmployee(emp.id, { active: !emp.active })}
-                  disabled={!canEditEmployees}
-                  className={`caption-mono text-[10px] px-2.5 py-0.5 rounded-full border transition cursor-pointer ${
-                    emp.active
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                      : 'bg-neutral-100 text-neutral-500 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700'
-                  }`}
-                  title="Clic para cambiar estado"
-                >
-                  {emp.active ? '● Activo' : '○ Inactivo'}
-                </button>
-              </div>
-
-              <div className="text-xs space-y-1.5 pt-2 border-t border-[#ebebeb] dark:border-[#262626] font-sans">
-                <div className="flex items-center justify-between text-neutral-600 dark:text-neutral-300">
-                  <span className="flex items-center gap-1 text-neutral-400 text-xs">
-                    <Building className="w-3 h-3" />
-                    Área / Cargo:
-                  </span>
-                  <span className="font-medium text-neutral-900 dark:text-neutral-200 text-xs">
-                    {emp.position} <span className="caption-mono text-neutral-400 font-normal">({emp.department})</span>
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-neutral-600 dark:text-neutral-300">
-                  <span className="flex items-center gap-1 text-neutral-400 text-xs">
-                    <DollarSign className="w-3 h-3 text-neutral-400" />
-                    Tarifa Hora Base:
-                  </span>
-                  {canManageSalaries ? (
-                    <span className="font-mono font-semibold text-neutral-900 dark:text-white text-xs">
-                      {formatCurrency(emp.baseHourlyRate)} / h
-                    </span>
-                  ) : (
-                    <span className="font-mono text-[10px] text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-[4px]">
-                      Confidencial (Nómina)
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
-              {canManageSalaries && (
-              <button
-                onClick={() => openEditModal(emp)}
-                className="text-xs text-neutral-700 dark:text-neutral-300 font-medium px-2.5 py-1 rounded-[6px] bg-neutral-100 dark:bg-neutral-800 flex items-center gap-1 transition hover:bg-neutral-200 dark:hover:bg-neutral-700"
-              >
-                <Edit className="w-3 h-3" />
-                <span>{canEditEmployees ? 'Editar' : 'Valor hora'}</span>
-              </button>
-              )}
-
+      {/* Lista */}
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-card px-4 py-12 text-center text-sm text-muted-foreground">
+          {employees.length === 0 ? (
+            <>
+              <p>Aún no hay empleados registrados.</p>
               {canEditEmployees && (
-              <button
-                title="Solo se puede eliminar un empleado sin horas registradas. Si tiene historial, márquelo como inactivo."
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: `¿Eliminar a ${emp.name}?`,
-                    description: 'Si tiene horas registradas no se podrá eliminar; en ese caso márquelo como inactivo.',
-                    confirmText: 'Eliminar',
-                    destructive: true,
-                  });
-                  if (ok) onDeleteEmployee(emp.id);
-                }}
-                className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 font-medium px-2.5 py-1 rounded-[6px] bg-red-50 dark:bg-red-950/30 flex items-center gap-1 transition"
-              >
-                <Trash2 className="w-3 h-3" />
-                <span>Eliminar</span>
-              </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Add / Edit Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent showCloseButton={false} aria-describedby={undefined} className="max-w-md">
-            <div className="bg-[#171717] text-white p-4 flex items-center justify-between border-b border-[#262626]">
-              <DialogTitle className="font-semibold text-sm text-white">
-                {editingEmployee ? 'Editar Empleado' : 'Nuevo Empleado'}
-              </DialogTitle>
-              <button type="button" onClick={() => setIsModalOpen(false)} aria-label="Cerrar" className="text-neutral-400 hover:text-white cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs overflow-y-auto">
-              <div>
-                <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
-                  Nombre Completo *
-                </label>
-                <Input disabled={!canEditEmployees}
-                  type="text"
-                  required
-                  placeholder="Ej. Carlos Alberto Mendoza"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full text-xs h-9 px-3"
-                />
-              </div>
-
-              <div>
-                <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
-                  Número de Cédula / Documento *
-                </label>
-                <Input disabled={!canEditEmployees}
-                  type="text"
-                  required
-                  placeholder="Ej. 1020304050"
-                  value={documentId}
-                  onChange={(e) => setDocumentId(e.target.value)}
-                  className="w-full text-xs h-9 px-3 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
-                    Cargo *
-                  </label>
-                  <Input disabled={!canEditEmployees}
-                    type="text"
-                    required
-                    placeholder="Ej. Técnico Inyección"
-                    value={position}
-                    onChange={(e) => setPosition(e.target.value)}
-                    className="w-full text-xs h-9 px-3"
-                  />
-                </div>
-
-                <div>
-                  <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
-                    Área / Depto *
-                  </label>
-                  <NativeSelect disabled={!canEditEmployees}
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    wrapperClassName="w-full" className="text-xs"
-                  >
-                    {PINTECH_DEPARTMENTS.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
-              </div>
-
-              {canManageSalaries ? (
-                <div>
-                  <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
-                    Valor Hora Base Ordinaria ($)
-                  </label>
-                  <Input
-                    type="number"
-                    step="500"
-                    min="0"
-                    value={baseHourlyRate}
-                    onChange={(e) => setBaseHourlyRate(parseFloat(e.target.value) || 0)}
-                    className="w-full text-xs h-9 px-3 font-mono"
-                  />
-                </div>
-              ) : (
-                <div className="p-2.5 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-[6px] text-xs text-neutral-500">
-                  <span className="caption-mono text-[10px] uppercase block text-neutral-400 mb-0.5">Tarifa Salarial</span>
-                  <span>Gestionada exclusivamente por el Contador / Nómina.</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
-                <Button variant="outline"
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium"
-                >
-                  Cancelar
+                <Button size="sm" onClick={() => openForm(null)}>
+                  <UserPlus /> Crear el primero
                 </Button>
-                <Button
-                  type="submit"
-                  className="px-4 py-2 text-xs font-medium"
-                >
-                  Guardar Empleado
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-      </Dialog>
+              )}
+            </>
+          ) : (
+            <p>Ningún empleado coincide con los filtros.</p>
+          )}
+        </div>
+      ) : isDesktop ? (
+        <EmployeeTable employees={filtered} actions={actions} />
+      ) : (
+        <EmployeeCards employees={filtered} actions={actions} />
+      )}
+
+      <EmployeeFormDialog
+        open={formOpen}
+        employee={editing}
+        employees={employees}
+        canEditEmployees={canEditEmployees}
+        canManageSalaries={canManageSalaries}
+        onClose={() => setFormOpen(false)}
+        onSave={handleSave}
+      />
     </div>
   );
-};
+}
