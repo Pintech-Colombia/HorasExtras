@@ -1,21 +1,30 @@
 import { GoogleGenAI } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
+
+// Solo usuarios con sesión válida en Supabase pueden usar este servicio (evita abuso de la clave de Gemini).
+// Se llama desde la misma app, por lo que no se habilita CORS para otros dominios.
+const isAuthorized = async (req: any): Promise<boolean> => {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // Sin Supabase solo se permite en desarrollo local
+    return process.env.NODE_ENV !== 'production';
+  }
+  const header = String(req.headers?.authorization || '');
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!token) return false;
+  const client = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
+  const { data, error } = await client.auth.getUser(token);
+  return !error && Boolean(data?.user);
+};
 
 export default async function handler(req: any, res: any) {
-  // Configurar CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido. Usa POST.' });
+  }
+
+  if (!(await isAuthorized(req))) {
+    return res.status(401).json({ error: 'Sesión no válida. Inicie sesión nuevamente.' });
   }
 
   const {
@@ -94,7 +103,7 @@ Responde únicamente con un objeto JSON válido sin bloques markdown adicionales
 `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

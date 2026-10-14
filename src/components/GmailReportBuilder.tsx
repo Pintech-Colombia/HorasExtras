@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Copy, Check, ExternalLink, Download, Sparkles, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES } from '../types';
+import { supabase } from '../lib/supabase';
 import { buildGmailFormattedText, copyRichHtmlToClipboard, exportToCSV, getGmailWebUrl, getMailtoUrl, formatCurrency, calculateRecordCost } from '../utils/exporters';
 import { formatHoursDisplay } from '../utils/schedule';
 
@@ -107,9 +108,14 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
     });
 
     try {
+      const { data: sessionData } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+      const token = sessionData.session?.access_token;
       const res = await fetch('/api/ai/generate-summary', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           monthYear: monthYearLabel,
           totalHours: totalHoursMonth,

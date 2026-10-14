@@ -1,6 +1,22 @@
-import React, { useState } from 'react';
-import { Building2, Mail, ShieldCheck, Save, RefreshCw, CheckCircle, Lock } from 'lucide-react';
-import { CompanySettings, UserRole } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Building2, Mail, ShieldCheck, Save, RefreshCw, CheckCircle, Lock, Percent } from 'lucide-react';
+import { CompanySettings, UserRole, OvertimeRules, DEFAULT_OVERTIME_RULES } from '../types';
+
+const WEEKDAYS: { key: string; label: string }[] = [
+  { key: '1', label: 'Lunes' },
+  { key: '2', label: 'Martes' },
+  { key: '3', label: 'Miércoles' },
+  { key: '4', label: 'Jueves' },
+  { key: '5', label: 'Viernes' },
+  { key: '6', label: 'Sábado' },
+];
+
+const PCT_FIELDS: { key: keyof OvertimeRules; label: string }[] = [
+  { key: 'extraDiurnaPct', label: 'Extra diurna' },
+  { key: 'extraNocturnaPct', label: 'Extra nocturna' },
+  { key: 'festivaDiurnaPct', label: 'Extra dominical/festiva diurna' },
+  { key: 'festivaNocturnaPct', label: 'Extra dominical/festiva nocturna' },
+];
 
 interface CompanySettingsViewProps {
   settings: CompanySettings;
@@ -18,6 +34,14 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
   const canEditSettings = userRole === 'accountant' || userRole === 'admin';
   const [formData, setFormData] = useState<CompanySettings>({ ...settings });
   const [savedStatus, setSavedStatus] = useState(false);
+
+  // Sincronizar el formulario cuando llegan los datos del servidor
+  useEffect(() => {
+    setFormData({ ...settings });
+  }, [settings]);
+  const rules = formData.overtimeRules;
+  const setRules = (partial: Partial<OvertimeRules>) =>
+    setFormData({ ...formData, overtimeRules: { ...formData.overtimeRules, ...partial } });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +175,106 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
               />
             </div>
           </div>
+        </div>
+
+        {/* Section 4: Overtime rules */}
+        <div className="space-y-4">
+          <h3 className="caption-mono text-xs text-neutral-500 dark:text-neutral-400 pb-2 border-b border-[#ebebeb] dark:border-[#262626] flex items-center gap-2 uppercase tracking-[0.06em]">
+            <Percent className="w-3.5 h-3.5 text-neutral-400" />
+            4. Recargos y Jornada Laboral
+          </h3>
+          <p className="text-[11px] text-neutral-500 dark:text-neutral-400 font-sans">
+            Porcentaje de recargo sobre la hora ordinaria (25% = se paga 1,25 veces). Valores por defecto según Ley 2466 de 2025
+            (dominical 90% desde julio de 2026); ajústelos si la empresa liquida de otra forma. Los cambios aplican a todos los
+            cálculos y reportes, incluidos meses anteriores.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            {PCT_FIELDS.map((f) => (
+              <div key={f.key}>
+                <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
+                  {f.label} (%) <span className="text-neutral-400">· ley: {DEFAULT_OVERTIME_RULES[f.key] as number}%</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={500}
+                  step="0.01"
+                  required
+                  disabled={!canEditSettings}
+                  value={rules[f.key] as number}
+                  onChange={(e) => setRules({ [f.key]: parseFloat(e.target.value) || 0 } as Partial<OvertimeRules>)}
+                  className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                />
+              </div>
+            ))}
+
+            <div>
+              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Inicio jornada nocturna</label>
+              <input
+                type="time"
+                required
+                disabled={!canEditSettings}
+                value={rules.nightStart}
+                onChange={(e) => setRules({ nightStart: e.target.value })}
+                className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+              />
+            </div>
+            <div>
+              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Fin jornada nocturna</label>
+              <input
+                type="time"
+                required
+                disabled={!canEditSettings}
+                value={rules.nightEnd}
+                onChange={(e) => setRules({ nightEnd: e.target.value })}
+                className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+              />
+            </div>
+            <div>
+              <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Hora de ingreso habitual</label>
+              <input
+                type="time"
+                required
+                disabled={!canEditSettings}
+                value={rules.shiftStart}
+                onChange={(e) => setRules({ shiftStart: e.target.value })}
+                className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <span className="caption-mono block text-neutral-600 dark:text-neutral-300">
+              Hora de salida ordinaria por día (vacío = sin jornada ese día: todo cuenta como extra)
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {WEEKDAYS.map((d) => (
+                <div key={d.key}>
+                  <label className="text-[11px] text-neutral-500 block mb-1">{d.label}</label>
+                  <input
+                    type="time"
+                    disabled={!canEditSettings}
+                    value={rules.shiftEnds[d.key] || ''}
+                    onChange={(e) => setRules({ shiftEnds: { ...rules.shiftEnds, [d.key]: e.target.value || null } })}
+                    className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-neutral-400 font-sans">Domingos y festivos de Colombia se detectan automáticamente.</p>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 font-sans">
+            <input
+              type="checkbox"
+              disabled={!canEditSettings}
+              checked={rules.saturdayAsHoliday}
+              onChange={(e) => setRules({ saturdayAsHoliday: e.target.checked })}
+              className="w-4 h-4 accent-[#171717]"
+            />
+            Pagar las horas del sábado con recargo dominical/festivo (no es obligatorio por ley)
+          </label>
         </div>
 
         {/* Buttons */}

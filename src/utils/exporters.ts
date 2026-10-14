@@ -2,7 +2,7 @@ import { Employee, OvertimeRecord, CompanySettings, OVERTIME_TYPES, OvertimeType
 
 export const calculateRecordCost = (record: OvertimeRecord, employeesMap: Map<string, Employee>) => {
   const emp = employeesMap.get(record.employeeId);
-  const baseRate = emp ? emp.baseHourlyRate : 15000;
+  const baseRate = emp ? emp.baseHourlyRate : 0;
   const mult = record.customMultiplier || OVERTIME_TYPES[record.type]?.multiplier || 1.25;
   return record.hours * baseRate * mult;
 };
@@ -43,7 +43,7 @@ export const exportToCSV = (
       `"${emp?.position || 'Operativo'}"`,
       rec.hours,
       `"${typeInfo?.label || rec.type}"`,
-      `${(typeInfo?.multiplier || 1.25) * 100}% (${typeInfo?.multiplier || 1.25}x)`,
+      `${Number((((rec.customMultiplier || typeInfo?.multiplier || 1) - 1) * 100).toFixed(2))}% recargo (${Number((rec.customMultiplier || typeInfo?.multiplier || 1).toFixed(4))}x)`,
       rec.verifiedByManager ? 'Verificado por Encargado' : 'Pendiente Revisión',
       `"${(rec.notes || '').replace(/"/g, '""')}"`,
     ];

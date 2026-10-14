@@ -1,129 +1,188 @@
+import { OvertimeRules, OvertimeType, DEFAULT_OVERTIME_RULES } from '../types';
+import { getHolidayName } from './holidays';
+
 export interface ScheduleInfo {
   dayName: string;
-  isWeekend: boolean;
+  hasOrdinaryShift: boolean; // false = no hay jornada ordinaria (todo lo laborado es extra)
+  isHoliday: boolean; // true = aplica recargo dominical/festivo
+  holidayName: string | null;
   shiftStart: string;
   shiftEnd: string;
   overtimeStartsAt: string;
   notes: string;
 }
 
-export const getWorkScheduleForDate = (dateStr: string): ScheduleInfo => {
-  if (!dateStr) {
-    return {
-      dayName: '',
-      isWeekend: false,
-      shiftStart: '7:30 AM',
-      shiftEnd: '5:00 PM',
-      overtimeStartsAt: '5:00 PM',
-      notes: 'Jornada ordinaria habitual',
-    };
-  }
+export interface OvertimeSegment {
+  type: OvertimeType;
+  hours: number;
+}
 
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const dateObj = new Date(year, month - 1, day);
-  const dayOfWeek = dateObj.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-  switch (dayOfWeek) {
-    case 1: // Monday
-    case 2: // Tuesday
-    case 4: // Thursday
-    case 5: // Friday
-      return {
-        dayName: dayOfWeek === 1 ? 'Lunes' : dayOfWeek === 2 ? 'Martes' : dayOfWeek === 4 ? 'Jueves' : 'Viernes',
-        isWeekend: false,
-        shiftStart: '7:30 AM',
-        shiftEnd: '5:00 PM',
-        overtimeStartsAt: '5:00 PM',
-        notes: 'Jornada ordinaria (7:30 AM - 5:00 PM). Horas extras inician a las 5:00 PM.',
-      };
-    case 3: // Wednesday
-      return {
-        dayName: 'Miércoles',
-        isWeekend: false,
-        shiftStart: '7:30 AM',
-        shiftEnd: '4:30 PM',
-        overtimeStartsAt: '4:30 PM',
-        notes: 'Jornada corta (7:30 AM - 4:30 PM). Horas extras inician a las 4:30 PM.',
-      };
-    case 6: // Saturday
-      return {
-        dayName: 'Sábado',
-        isWeekend: true,
-        shiftStart: 'N/A',
-        shiftEnd: 'N/A',
-        overtimeStartsAt: 'Todo el día',
-        notes: 'Día no laboral ordinario. Todas las horas laboradas se consideran extras.',
-      };
-    case 0: // Sunday
-    default:
-      return {
-        dayName: 'Domingo',
-        isWeekend: true,
-        shiftStart: 'N/A',
-        shiftEnd: 'N/A',
-        overtimeStartsAt: 'Todo el día',
-        notes: 'Día dominical/festivo. Aplica recargo festivo.',
-      };
-  }
-};
+const roundHours = (h: number) => Math.round(h * 100) / 100;
 
-export const getShiftEndMinutes = (dateStr: string): number | null => {
-  if (!dateStr) return 17 * 60; // 5:00 PM
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const dateObj = new Date(year, month - 1, day);
-  const dayOfWeek = dateObj.getDay();
-
-  if (dayOfWeek === 0 || dayOfWeek === 6) return null; // Weekend
-  if (dayOfWeek === 3) return 16 * 60 + 30; // 4:30 PM = 990 mins
-  return 17 * 60; // 5:00 PM = 1020 mins
-};
-
-export const parseTimeToMinutes = (timeStr: string): number | null => {
+export const parseTimeToMinutes = (timeStr: string | null | undefined): number | null => {
   if (!timeStr) return null;
   const parts = timeStr.split(':').map(Number);
   if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
   return parts[0] * 60 + parts[1];
 };
 
-export const calculateOvertimeFromDeparture = (
+export const formatTime12h = (timeStr: string | null | undefined): string => {
+  const mins = parseTimeToMinutes(timeStr);
+  if (mins === null) return 'N/A';
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+};
+
+const getDayOfWeek = (dateStr: string): number => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day).getDay(); // 0 = domingo
+};
+
+export const getWorkScheduleForDate = (
   dateStr: string,
-  departureTimeStr: string,
-  startTimeStr: string = '07:30'
-): { hours: number; breakdown: string } => {
-  const depMins = parseTimeToMinutes(departureTimeStr);
-  if (depMins === null) {
-    return { hours: 0, breakdown: 'Selecciona una hora de salida válida.' };
-  }
-
-  const shiftEndMins = getShiftEndMinutes(dateStr);
-
-  if (shiftEndMins === null) {
-    // Weekend - calculate total time from start to departure
-    const startMins = parseTimeToMinutes(startTimeStr) ?? (7 * 60 + 30);
-    const diffMins = Math.max(0, depMins - startMins);
-    const hours = Math.round((diffMins / 60) * 10) / 10;
+  rules: OvertimeRules = DEFAULT_OVERTIME_RULES
+): ScheduleInfo => {
+  if (!dateStr) {
     return {
-      hours,
-      breakdown: `Fin de semana: Ingreso ${startTimeStr} a Salida ${departureTimeStr} = ${formatHoursDisplay(hours)}`,
+      dayName: '',
+      hasOrdinaryShift: true,
+      isHoliday: false,
+      holidayName: null,
+      shiftStart: formatTime12h(rules.shiftStart),
+      shiftEnd: formatTime12h(rules.shiftEnds['1']),
+      overtimeStartsAt: formatTime12h(rules.shiftEnds['1']),
+      notes: 'Jornada ordinaria habitual',
     };
   }
 
-  // Weekday calculation relative to shift end
-  const diffMins = Math.max(0, depMins - shiftEndMins);
-  const hours = Math.round((diffMins / 60) * 10) / 10;
+  const dayOfWeek = getDayOfWeek(dateStr);
+  const dayName = DAY_NAMES[dayOfWeek];
+  const holidayName = getHolidayName(dateStr);
+  const isSunday = dayOfWeek === 0;
+  const isSaturdayHoliday = dayOfWeek === 6 && rules.saturdayAsHoliday;
+  const isHoliday = Boolean(holidayName) || isSunday || isSaturdayHoliday;
+  const shiftEnd = isHoliday ? null : rules.shiftEnds[String(dayOfWeek)] ?? null;
 
-  const schedule = getWorkScheduleForDate(dateStr);
-  if (diffMins <= 0) {
+  if (isHoliday) {
+    const reason = holidayName ? `Festivo: ${holidayName}` : isSunday ? 'Dominical' : 'Sábado pagado como festivo';
     return {
-      hours: 0,
-      breakdown: `La hora de salida (${departureTimeStr}) no supera la hora oficial de salida (${schedule.shiftEnd}).`,
+      dayName,
+      hasOrdinaryShift: false,
+      isHoliday: true,
+      holidayName,
+      shiftStart: 'N/A',
+      shiftEnd: 'N/A',
+      overtimeStartsAt: 'Todo el día',
+      notes: `${reason}. Todas las horas laboradas llevan recargo dominical/festivo.`,
+    };
+  }
+
+  if (!shiftEnd) {
+    return {
+      dayName,
+      hasOrdinaryShift: false,
+      isHoliday: false,
+      holidayName: null,
+      shiftStart: 'N/A',
+      shiftEnd: 'N/A',
+      overtimeStartsAt: 'Todo el día',
+      notes: 'Sin jornada ordinaria este día. Todas las horas laboradas son extras (diurnas o nocturnas, sin recargo festivo).',
     };
   }
 
   return {
-    hours,
-    breakdown: `Salida ordinaria (${schedule.shiftEnd}) vs Salida real (${departureTimeStr}) = ${formatHoursDisplay(hours)} extras`,
+    dayName,
+    hasOrdinaryShift: true,
+    isHoliday: false,
+    holidayName: null,
+    shiftStart: formatTime12h(rules.shiftStart),
+    shiftEnd: formatTime12h(shiftEnd),
+    overtimeStartsAt: formatTime12h(shiftEnd),
+    notes: `Jornada ordinaria (${formatTime12h(rules.shiftStart)} - ${formatTime12h(shiftEnd)}). Horas extras inician a las ${formatTime12h(shiftEnd)}.`,
   };
+};
+
+// Tipo sugerido cuando se ingresan horas directamente (sin hora de salida)
+export const suggestOvertimeType = (dateStr: string, rules: OvertimeRules = DEFAULT_OVERTIME_RULES): OvertimeType => {
+  return getWorkScheduleForDate(dateStr, rules).isHoliday ? 'festiva_diurna' : 'diurna';
+};
+
+const overlap = (a1: number, a2: number, b1: number, b2: number) => Math.max(0, Math.min(a2, b2) - Math.max(a1, b1));
+
+// Minutos nocturnos dentro del intervalo [from, to] (to puede pasar de medianoche: > 1440)
+const nightMinutesInRange = (from: number, to: number, nightStart: number, nightEnd: number): number => {
+  let total = 0;
+  // Ventanas nocturnas que tocan el día anterior, el día actual y el siguiente
+  for (let dayOffset = -1440; dayOffset <= 1440; dayOffset += 1440) {
+    total += overlap(from, to, nightStart + dayOffset, 1440 + nightEnd + dayOffset);
+  }
+  return total;
+};
+
+export const calculateOvertimeFromDeparture = (
+  dateStr: string,
+  departureTimeStr: string,
+  startTimeStr: string,
+  rules: OvertimeRules = DEFAULT_OVERTIME_RULES
+): { hours: number; breakdown: string; segments: OvertimeSegment[] } => {
+  const depMinsRaw = parseTimeToMinutes(departureTimeStr);
+  if (depMinsRaw === null) {
+    return { hours: 0, breakdown: 'Selecciona una hora de salida válida.', segments: [] };
+  }
+
+  const schedule = getWorkScheduleForDate(dateStr, rules);
+  const dayOfWeek = dateStr ? getDayOfWeek(dateStr) : 1;
+  const shiftEndMins = schedule.hasOrdinaryShift ? parseTimeToMinutes(rules.shiftEnds[String(dayOfWeek)]) : null;
+
+  let from: number;
+  if (shiftEndMins !== null) {
+    from = shiftEndMins;
+  } else {
+    from = parseTimeToMinutes(startTimeStr) ?? parseTimeToMinutes(rules.shiftStart) ?? 450;
+  }
+
+  // Una salida de madrugada (antes del fin de la jornada nocturna) se toma como del día siguiente
+  let to = depMinsRaw;
+  if (to < from && depMinsRaw <= (parseTimeToMinutes(rules.nightEnd) ?? 360)) {
+    to += 1440;
+  }
+
+  const totalMins = Math.max(0, to - from);
+  if (totalMins <= 0) {
+    return {
+      hours: 0,
+      breakdown: `La hora de salida (${formatTime12h(departureTimeStr)}) no supera la hora oficial de salida (${schedule.shiftEnd}).`,
+      segments: [],
+    };
+  }
+
+  const nightStart = parseTimeToMinutes(rules.nightStart) ?? 19 * 60;
+  const nightEnd = parseTimeToMinutes(rules.nightEnd) ?? 6 * 60;
+  const nightMins = nightMinutesInRange(from, to, nightStart, nightEnd);
+  const dayMins = totalMins - nightMins;
+
+  const dayType: OvertimeType = schedule.isHoliday ? 'festiva_diurna' : 'diurna';
+  const nightType: OvertimeType = schedule.isHoliday ? 'festiva_nocturna' : 'nocturna';
+
+  const segments: OvertimeSegment[] = [];
+  if (dayMins > 0) segments.push({ type: dayType, hours: roundHours(dayMins / 60) });
+  if (nightMins > 0) segments.push({ type: nightType, hours: roundHours(nightMins / 60) });
+
+  const hours = segments.reduce((acc, s) => acc + s.hours, 0);
+  const label = (t: OvertimeType) =>
+    t === 'diurna' ? 'diurnas' : t === 'nocturna' ? 'nocturnas' : t === 'festiva_diurna' ? 'festivas diurnas' : 'festivas nocturnas';
+  const detail = segments.map((s) => `${formatHoursDisplay(s.hours)} ${label(s.type)}`).join(' + ');
+
+  const range = shiftEndMins !== null
+    ? `Salida ordinaria ${schedule.shiftEnd} → salida real ${formatTime12h(departureTimeStr)}`
+    : `Ingreso ${formatTime12h(startTimeStr)} → salida ${formatTime12h(departureTimeStr)}`;
+
+  return { hours: roundHours(hours), breakdown: `${range}: ${detail}`, segments };
 };
 
 export const formatHoursDisplay = (hours: number): string => {
@@ -135,5 +194,5 @@ export const formatHoursDisplay = (hours: number): string => {
   if (whole === 0) {
     return `${minutes}m`;
   }
-  return `${whole}h ${minutes}m (${hours}h)`;
+  return `${whole}h ${minutes}m`;
 };

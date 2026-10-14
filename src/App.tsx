@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Employee, OvertimeRecord, CompanySettings, UserProfile, UserRole, PeriodType } from './types';
+import { Employee, OvertimeRecord, CompanySettings, UserProfile, UserRole, PeriodType, applyOvertimeRules } from './types';
 import { getEmployees, createEmployee, createMultipleEmployees, updateEmployee, deleteEmployee } from './services/employeesService';
 import { getRecords, createRecords, updateRecord, deleteRecord, verifyAllMonthRecords } from './services/recordsService';
 import { getCompanySettings, updateCompanySettings } from './services/companyService';
-import { resetDataToDefaults } from './utils/storage';
+import { INITIAL_SETTINGS } from './data/defaults';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { CalendarView } from './components/CalendarView';
@@ -13,7 +13,6 @@ import { EmployeeManager } from './components/EmployeeManager';
 import { CompanySettingsView } from './components/CompanySettingsView';
 import { AddOvertimeModal } from './components/AddOvertimeModal';
 import { LoginScreen } from './components/LoginScreen';
-import { AuthModal } from './components/AuthModal';
 import { PintechLogo } from './components/PintechLogo';
 
 export default function App() {
@@ -24,18 +23,15 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [activeRole, setActiveRole] = useState<UserRole>('manager');
+  // Modo demostración: solo en desarrollo local y sin Supabase configurado
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [settings, setSettings] = useState<CompanySettings>({
-    companyName: 'Pintech Colombia S.A.S.',
-    companyNIT: '901.123.507-9',
-    accountantName: 'Omar (Contador)',
-    accountantEmail: 'contabilidad@pintech.co',
-    managerName: 'Lorena Vargas',
-    managerTitle: 'Jefa de Producción',
-    currencySymbol: '$',
-  });
+  const [settings, setSettings] = useState<CompanySettings>(INITIAL_SETTINGS);
+
+  // Las etiquetas y multiplicadores de recargos siguen la configuración de la empresa
+  applyOvertimeRules(settings.overtimeRules);
 
   // Current Month selector YYYY-MM
   const today = new Date();
@@ -48,13 +44,13 @@ export default function App() {
   // Active Tab
   const [currentTab, setCurrentTab] = useState<'calendar' | 'review' | 'gmail' | 'employees' | 'settings'>('calendar');
 
-  // Cambiar rol activo y aplicar guardias de pestaña
-  const handleRoleSwitch = (newRole: UserRole) => {
+  // Aplica el rol y regresa al calendario si la pestaña actual no está permitida
+  const applyRole = (newRole: UserRole) => {
     setActiveRole(newRole);
-    if (newRole === 'supervisor' && currentTab !== 'calendar') {
+    if (newRole === 'supervisor') {
       setCurrentTab('calendar');
-    } else if (newRole === 'manager' && currentTab === 'settings') {
-      setCurrentTab('calendar');
+    } else if (newRole === 'manager') {
+      setCurrentTab((tab) => (tab === 'settings' ? 'calendar' : tab));
     }
   };
 
@@ -95,37 +91,38 @@ export default function App() {
         .eq('id', authUser.id)
         .maybeSingle();
 
-      if (data) {
-        const role = (data.role as UserRole) || 'supervisor';
-        setUserProfile({
-          id: data.id,
-          email: data.email,
-          fullName: data.full_name,
-          role,
-          companyId: data.company_id,
-        });
-        setActiveRole(role);
-      } else {
-        // Fallback perfil basado en metadata de Auth
-        const role = (authUser.user_metadata?.role as UserRole) || 'supervisor';
-        setUserProfile({
-          id: authUser.id,
-          email: authUser.email || '',
-          fullName: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuario Pintech',
-          role,
-        });
-        setActiveRole(role);
-      }
+      // El rol SOLO se toma de la base de datos; sin perfil se trata como supervisor (mínimo privilegio)
+      const role: UserRole = (data?.role as UserRole) || 'supervisor';
+      setUserProfile({
+        id: authUser.id,
+        email: data?.email || authUser.email || '',
+        fullName: data?.full_name || authUser.email?.split('@')[0] || 'Usuario',
+        role,
+        companyId: data?.company_id,
+      });
+      applyRole(role);
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('Error al cargar perfil de usuario:', err);
       }
+      applyRole('supervisor');
+    }
+  };
+
+  // Ejecuta una operación contra el servidor; si falla, muestra el error y recarga el estado real
+  const runAction = async (action: () => Promise<void>) => {
+    try {
+      await action();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Ocurrió un error inesperado. Intente de nuevo.');
+      loadInitialData();
     }
   };
 
   // Carga inicial asíncrona de datos desde Supabase
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const [fetchedEmployees, fetchedRecords, fetchedSettings] = await Promise.all([
         getEmployees(),
@@ -135,10 +132,8 @@ export default function App() {
       setEmployees(fetchedEmployees);
       setRecords(fetchedRecords);
       setSettings(fetchedSettings);
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error al cargar datos iniciales:', error);
-      }
+    } catch (error: any) {
+      setLoadError(error?.message || 'No se pudieron cargar los datos.');
     } finally {
       setIsLoading(false);
     }
@@ -153,17 +148,19 @@ export default function App() {
           await fetchUserProfile(session.user);
         }
         setIsAuthChecking(false);
-        loadInitialData();
+        if (session) loadInitialData();
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         setSession(session);
         if (session?.user) {
           await fetchUserProfile(session.user);
+          loadInitialData();
         } else {
           setUserProfile(null);
+          setEmployees([]);
+          setRecords([]);
         }
-        loadInitialData();
       });
 
       return () => subscription.unsubscribe();
@@ -178,6 +175,8 @@ export default function App() {
       await supabase.auth.signOut();
       setSession(null);
       setUserProfile(null);
+      setEmployees([]);
+      setRecords([]);
     }
   };
 
@@ -192,9 +191,15 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleSaveNewRecords = async (newRecordsData: Omit<OvertimeRecord, 'id' | 'createdAt'>[]) => {
-    const created = await createRecords(newRecordsData, userProfile?.companyId, userProfile?.id);
-    setRecords((prev) => [...created, ...prev]);
+  const handleSaveNewRecords = async (newRecordsData: Omit<OvertimeRecord, 'id' | 'createdAt'>[]): Promise<boolean> => {
+    try {
+      const created = await createRecords(newRecordsData);
+      setRecords((prev) => [...created, ...prev]);
+      return true;
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'No se pudieron guardar las horas extras.');
+      return false;
+    }
   };
 
   const handleToggleVerifyRecord = async (id: string) => {
@@ -212,7 +217,7 @@ export default function App() {
       prev.map((r) => (r.id === id ? { ...r, ...partial } : r))
     );
 
-    await updateRecord(id, partial);
+    await runAction(() => updateRecord(id, partial).then(() => undefined));
   };
 
   const handleVerifyAllMonth = async () => {
@@ -231,54 +236,61 @@ export default function App() {
       })
     );
 
-    await verifyAllMonthRecords(selectedMonth);
+    await runAction(() => verifyAllMonthRecords(selectedMonth));
   };
 
   const handleDeleteRecord = async (id: string) => {
     setRecords((prev) => prev.filter((r) => r.id !== id));
-    await deleteRecord(id);
+    await runAction(() => deleteRecord(id));
   };
 
   const handleUpdateRecord = async (id: string, partial: Partial<OvertimeRecord>) => {
     setRecords((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...partial } : r))
     );
-    await updateRecord(id, partial);
+    await runAction(() => updateRecord(id, partial).then(() => undefined));
   };
 
   // Handlers de Empleados
   const handleAddEmployee = async (newEmp: Omit<Employee, 'id'>) => {
-    const created = await createEmployee(newEmp, userProfile?.companyId);
-    setEmployees((prev) => [...prev, created]);
+    await runAction(async () => {
+      const created = await createEmployee(newEmp);
+      setEmployees((prev) => [...prev, created]);
+    });
   };
 
-  const handleAddMultipleEmployees = async (newEmps: Omit<Employee, 'id'>[]) => {
-    const createdList = await createMultipleEmployees(newEmps, userProfile?.companyId);
-    setEmployees((prev) => [...createdList, ...prev]);
+  const handleAddMultipleEmployees = async (newEmps: Omit<Employee, 'id'>[]): Promise<boolean> => {
+    try {
+      const createdList = await createMultipleEmployees(newEmps);
+      setEmployees((prev) => [...createdList, ...prev]);
+      return true;
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'No se pudieron importar los empleados.');
+      return false;
+    }
   };
 
   const handleUpdateEmployee = async (id: string, partial: Partial<Employee>) => {
     setEmployees((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...partial } : e))
     );
-    await updateEmployee(id, partial);
+    await runAction(() => updateEmployee(id, partial));
   };
 
   const handleDeleteEmployee = async (id: string) => {
     setEmployees((prev) => prev.filter((e) => e.id !== id));
-    await deleteEmployee(id);
+    await runAction(() => deleteEmployee(id));
   };
 
   // Configuración de la Empresa
   const handleUpdateSettings = async (newSettings: CompanySettings) => {
     setSettings(newSettings);
-    await updateCompanySettings(newSettings, userProfile?.companyId);
+    await runAction(() => updateCompanySettings(newSettings));
   };
 
   const handleResetDefaults = () => {
     if (window.confirm('¿Deseas restablecer los parámetros de la empresa a los valores iniciales?')) {
-      setSettings(INITIAL_SETTINGS);
-      updateCompanySettings(INITIAL_SETTINGS, userProfile?.companyId);
+      handleUpdateSettings(INITIAL_SETTINGS);
     }
   };
 
@@ -310,12 +322,33 @@ export default function App() {
     );
   }
 
-  // Auth Gate: Si no está autenticado y no está en modo demo, mostrar Login
-  if (!session && !isDemoMode && isSupabaseConfigured()) {
+  // Producción sin Supabase configurado: no se permite operar con datos locales
+  if (!isSupabaseConfigured() && !import.meta.env.DEV) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+        <PintechLogo size="lg" showSubtitle={false} />
+        <p className="mt-8 text-sm text-neutral-300 max-w-md">
+          La aplicación no está conectada a la base de datos. El administrador debe configurar
+          VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel y volver a desplegar.
+        </p>
+      </div>
+    );
+  }
+
+  // Auth Gate: sin sesión se muestra el login (el modo demo solo existe en desarrollo sin Supabase)
+  if (!session && !isDemoMode) {
     return (
       <LoginScreen
         onLoginSuccess={loadInitialData}
-        onContinueOffline={import.meta.env.DEV ? () => setIsDemoMode(true) : undefined}
+        onContinueOffline={
+          import.meta.env.DEV && !isSupabaseConfigured()
+            ? () => {
+                setIsDemoMode(true);
+                applyRole('admin');
+                loadInitialData();
+              }
+            : undefined
+        }
       />
     );
   }
@@ -337,15 +370,33 @@ export default function App() {
         userEmail={session?.user?.email || (isDemoMode ? 'Modo Local' : null)}
         userName={userProfile?.fullName || null}
         userRole={activeRole}
-        onRoleSwitch={handleRoleSwitch}
+        onRoleSwitch={isDemoMode ? applyRole : undefined}
         periodType={periodType}
         onPeriodChange={setPeriodType}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenAuth={() => setIsDemoMode(false)}
         onSignOut={handleSignOut}
       />
 
       {/* Main View Container con Guardias de Seguridad por Rol */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {errorMsg && (
+          <div className="mb-4 flex items-start justify-between gap-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-[8px] text-xs text-red-800 dark:text-red-200">
+            <span>{errorMsg}</span>
+            <button onClick={() => setErrorMsg(null)} className="font-semibold underline shrink-0">
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        {loadError && (
+          <div className="mb-4 flex items-start justify-between gap-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-[8px] text-xs text-red-800 dark:text-red-200">
+            <span>{loadError}</span>
+            <button onClick={loadInitialData} className="font-semibold underline shrink-0">
+              Reintentar
+            </button>
+          </div>
+        )}
+
         {isLoading && (
           <div className="mb-4 flex items-center justify-center p-3 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] caption-mono text-xs text-neutral-500 dark:text-neutral-400 shadow-vercel-subtle animate-pulse">
             Sincronizando registros de nómina...
@@ -363,6 +414,7 @@ export default function App() {
             onAddForDate={handleOpenModalForDate}
             onDeleteRecord={handleDeleteRecord}
             onToggleVerifyRecord={handleToggleVerifyRecord}
+            currentUserId={userProfile?.id}
           />
         )}
 
@@ -422,14 +474,10 @@ export default function App() {
         employees={employees.filter((e) => e.active)}
         initialDate={modalInitialDate}
         onSaveRecords={handleSaveNewRecords}
+        rules={settings.overtimeRules}
+        canVerify={activeRole === 'manager' || activeRole === 'admin'}
       />
 
-      {/* Modal de Autenticación de respaldo */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthSuccess={loadInitialData}
-      />
     </div>
   );
 }

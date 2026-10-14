@@ -1,0 +1,66 @@
+# Mantenimiento gratuito de la base de datos (plan Free de Supabase):
+#  1. Keep-alive: consulta la base cada día para que Supabase no pause el proyecto por inactividad.
+#  2. Copia de seguridad: exporta toda la base (cifrada con contraseña) y la guarda 90 días
+#     como artefacto de esta ejecución (Actions > ejecución > Artifacts).
+#
+# Secretos requeridos (Settings > Secrets and variables > Actions):
+#   SUPABASE_URL          https://<proyecto>.supabase.co
+#   SUPABASE_ANON_KEY     clave anon pública
+#   SUPABASE_DB_URL       cadena "Session pooler" (Project Settings > Database > Connect), con contraseña
+#   BACKUP_PASSPHRASE     contraseña para cifrar las copias (guárdela en un lugar seguro)
+name: Supabase - keep-alive y copia de seguridad
+
+on:
+  schedule:
+    - cron: '17 8 * * *' # todos los días 3:17 a. m. hora Colombia
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  mantenimiento:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Keep-alive (evita la pausa del proyecto)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Faltan los secretos SUPABASE_URL / SUPABASE_ANON_KEY"; exit 1
+          fi
+          curl -fsS -X POST "$SUPABASE_URL/rest/v1/rpc/keep_alive" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" -d '{}'
+          echo
+          echo "Base de datos activa."
+
+      - name: Copia de seguridad cifrada
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::warning::Sin SUPABASE_DB_URL / BACKUP_PASSPHRASE: se omite la copia de seguridad."; exit 0
+          fi
+          set -o pipefail
+          FILE="horasextras-$(date -u +%Y-%m-%d).sql.gz.gpg"
+          # pg_dump debe ser igual o más nuevo que el servidor (Supabase usa Postgres 15/17)
+          docker run --rm -e PGURL="$SUPABASE_DB_URL" postgres:17 \
+            sh -c 'pg_dump "$PGURL" --schema=public --no-owner --no-privileges' \
+            | gzip -9 \
+            | gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$BACKUP_PASSPHRASE" -o "$FILE"
+          ls -lh "$FILE"
+          echo "BACKUP_FILE=$FILE" >> "$GITHUB_ENV"
+
+      - name: Guardar copia (90 días)
+        if: env.BACKUP_FILE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 90
+          if-no-files-found: error

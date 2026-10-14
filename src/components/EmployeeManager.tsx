@@ -7,7 +7,7 @@ interface EmployeeManagerProps {
   employees: Employee[];
   userRole?: UserRole | null;
   onAddEmployee: (emp: Omit<Employee, 'id'>) => void;
-  onAddMultipleEmployees?: (emps: Omit<Employee, 'id'>[]) => void;
+  onAddMultipleEmployees: (emps: Omit<Employee, 'id'>[]) => Promise<boolean>;
   onUpdateEmployee: (id: string, updated: Partial<Employee>) => void;
   onDeleteEmployee: (id: string) => void;
 }
@@ -43,7 +43,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
   const [documentId, setDocumentId] = useState('');
   const [position, setPosition] = useState('');
   const [department, setDepartment] = useState('Inyección');
-  const [baseHourlyRate, setBaseHourlyRate] = useState<number>(15000);
+  const [baseHourlyRate, setBaseHourlyRate] = useState<number>(0);
   const [active, setActive] = useState(true);
 
   const openAddModal = () => {
@@ -52,7 +52,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
     setDocumentId('');
     setPosition('');
     setDepartment('Inyección');
-    setBaseHourlyRate(15000);
+    setBaseHourlyRate(0);
     setActive(true);
     setIsModalOpen(true);
   };
@@ -101,7 +101,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
         if (!text) return;
@@ -116,26 +116,27 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
         // Saltar encabezado i = 1
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
-          if (cols.length >= 2 && cols[1]) {
+          // Cédula y nombre son obligatorios (no se inventan documentos)
+          if (cols.length >= 2 && cols[0] && cols[1]) {
             newEmployees.push({
-              documentId: cols[0] || `DOC-${Date.now()}-${i}`,
+              documentId: cols[0],
               name: cols[1],
               position: cols[2] || 'Operario de Planta',
               department: cols[3] || 'Operaciones',
-              baseHourlyRate: parseFloat(cols[4]) || 15000,
+              baseHourlyRate: parseFloat(cols[4]) || 0,
               active: true,
             });
           }
         }
 
         if (newEmployees.length > 0) {
-          if (onAddMultipleEmployees) {
-            onAddMultipleEmployees(newEmployees);
+          const ok = await onAddMultipleEmployees(newEmployees);
+          if (ok) {
+            setImportStatus(`¡Éxito! Se importaron ${newEmployees.length} empleados correctamente.`);
+            setTimeout(() => setImportStatus(null), 4000);
           } else {
-            newEmployees.forEach((emp) => onAddEmployee(emp));
+            setImportStatus('No se importó ningún empleado. Revise el mensaje de error (por ejemplo, cédulas repetidas).');
           }
-          setImportStatus(`¡Éxito! Se importaron ${newEmployees.length} empleados correctamente.`);
-          setTimeout(() => setImportStatus(null), 4000);
         } else {
           setImportStatus('No se encontraron registros válidos en el archivo CSV.');
         }
@@ -152,10 +153,8 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
   const handleDownloadTemplate = () => {
     const csvContent =
       'data:text/csv;charset=utf-8,\uFEFF' +
-      'cedula,nombre,cargo,departamento,tarifa_hora\n' +
-      '1020304050,Carlos Alberto Mendoza,Técnico de Inyección,Inyección,16000\n' +
-      '1098765432,Ana Lucía Torres,Inspectora de Calidad,Calidad,17500\n' +
-      '1012345678,Javier Gómez,Técnico de Mantenimiento,Mantenimiento,18000\n';
+      // Solo encabezados: así nunca se importan empleados de ejemplo por error
+      'cedula,nombre,cargo,departamento,tarifa_hora\n';
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
@@ -333,9 +332,11 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                 <span>Editar</span>
               </button>
 
+              {userRole === 'admin' && (
               <button
+                title="Solo se puede eliminar un empleado sin horas registradas. Si tiene historial, márquelo como inactivo."
                 onClick={() => {
-                  if (window.confirm(`¿Seguro que deseas eliminar a ${emp.name}?`)) {
+                  if (window.confirm(`¿Seguro que deseas eliminar a ${emp.name}? Si tiene horas registradas no se podrá; márquelo como inactivo.`)) {
                     onDeleteEmployee(emp.id);
                   }
                 }}
@@ -344,6 +345,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                 <Trash2 className="w-3 h-3" />
                 <span>Eliminar</span>
               </button>
+              )}
             </div>
           </div>
         ))}
