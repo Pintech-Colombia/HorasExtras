@@ -102,3 +102,13 @@ body.dark {
 .tracking-body-sm {
   letter-spacing: -0.28px;
 }
+
+/* iPhone/Safari hace zoom automático al enfocar campos con letra menor a 16px.
+   En pantallas pequeñas los campos usan 16px para evitarlo (sin bloquear el zoom manual). */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
