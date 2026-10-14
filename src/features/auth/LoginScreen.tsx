@@ -13,11 +13,7 @@ interface LoginScreenProps {
   onContinueOffline?: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({
-  onLoginSuccess,
-  onContinueOffline,
-}) => {
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onContinueOffline }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,16 +29,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setSuccessMsg(null);
 
     try {
-      if (isForgotPassword) {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin,
-        });
-        if (error) throw error;
-        setSuccessMsg('Si el correo corresponde a una cuenta registrada, recibirás las instrucciones de recuperación.');
-        setLoading(false);
-        return;
-      }
-
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
@@ -87,24 +73,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Eyebrow and Headline */}
         <div className="mb-6">
           <span className="font-mono-tech text-[11px] uppercase tracking-wider text-[#666666] dark:text-[#888888] block mb-1">
-            {isForgotPassword ? 'Seguridad' : 'Autenticación'}
+            Autenticación
           </span>
           <h1 className="text-2xl font-semibold tracking-[-0.96px] text-[#171717] dark:text-white leading-snug">
-            {isForgotPassword ? 'Restablece tu contraseña.' : 'Bienvenido de nuevo.'}
+            Bienvenido de nuevo.
           </h1>
           <p className="text-xs text-[#666666] dark:text-[#888888] mt-1.5 leading-relaxed">
-            {isForgotPassword
-              ? 'Ingresa tu correo para recibir un enlace de recuperación seguro.'
-              : 'Gestión de horas extras, turnos y exportación oficial para nómina.'}
+            Gestión de horas extras, turnos y exportación oficial para nómina.
           </p>
         </div>
 
         {/* Registro público deshabilitado: las cuentas las crea el administrador */}
-        {!isForgotPassword && (
-          <p className="mb-5 pb-3 border-b border-[#ebebeb] dark:border-[#262626] text-[11px] text-[#666666] dark:text-[#888888]">
-            ¿No tienes cuenta? Solicítala al administrador del sistema.
-          </p>
-        )}
+        <p className="mb-5 pb-3 border-b border-[#ebebeb] dark:border-[#262626] text-[11px] text-[#666666] dark:text-[#888888]">
+          ¿No tienes cuenta? Solicítala al administrador del sistema.
+        </p>
 
         {/* Alerts */}
         {errorMsg && (
@@ -138,60 +120,44 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
           </Field>
 
-          {!isForgotPassword && (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="login-password">Contraseña</Label>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 text-xs"
-                  onClick={() => {
-                    setIsForgotPassword(true);
-                    setErrorMsg(null);
-                  }}
-                >
-                  ¿Olvidaste tu contraseña?
-                </Button>
-              </div>
-              <PasswordInput
-                id="login-password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-10"
-              />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="login-password">Contraseña</Label>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs"
+                onClick={() => {
+                  setErrorMsg(null);
+                  setSuccessMsg(
+                    'Para restablecer tu contraseña comunícate con el administrador del sistema. Te dará una contraseña temporal y al entrar crearás una nueva.'
+                  );
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </Button>
             </div>
-          )}
+            <PasswordInput
+              id="login-password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-10"
+            />
+          </div>
 
           <Button type="submit" size="lg" disabled={loading} className="mt-2 w-full">
             {loading ? (
               'Conectando...'
             ) : (
               <>
-                {isForgotPassword ? 'Enviar enlace de recuperación' : 'Iniciar sesión'}
+                Iniciar sesión
                 <ArrowRight />
               </>
             )}
           </Button>
-
-          {isForgotPassword && (
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsForgotPassword(false);
-                  setErrorMsg(null);
-                  setSuccessMsg(null);
-                }}
-                className="text-xs text-[#888888] hover:text-[#171717] dark:hover:text-white cursor-pointer"
-              >
-                Volver a Iniciar Sesión
-              </button>
-            </div>
-          )}
         </form>
 
         {/* Demo Mode Fallback */}

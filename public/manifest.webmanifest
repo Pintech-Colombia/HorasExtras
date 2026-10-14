@@ -1,0 +1,17 @@
+{
+  "name": "Pintech · Horas Extras",
+  "short_name": "Horas Extras",
+  "description": "Registro, aprobación y reporte de horas extras de Pintech Colombia.",
+  "lang": "es-CO",
+  "start_url": "/calendario",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#171717",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
