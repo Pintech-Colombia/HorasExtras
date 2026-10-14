@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, FileText, CheckCircle2, X, Info, ArrowRight, Sparkles, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, User, FileText, CheckCircle2, X, Info, Sparkles, AlertTriangle } from 'lucide-react';
 import { Employee, OvertimeType, OVERTIME_TYPES, OvertimeRecord, OvertimeRules } from '../types';
 import {
   getWorkScheduleForDate,
@@ -9,6 +9,10 @@ import {
   OvertimeSegment,
   DAILY_OVERTIME_ALERT_HOURS,
 } from '../utils/schedule';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface AddOvertimeModalProps {
   isOpen: boolean;
@@ -172,8 +176,9 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
 
   const directPresets = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
 
-  return (    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#111111] rounded-[12px] max-w-lg w-full border border-[#ebebeb] dark:border-[#262626] shadow-vercel-modal overflow-hidden flex flex-col max-h-[92vh]">
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent showCloseButton={false} aria-describedby={undefined} className="max-w-lg">
         {/* Vercel Polarity Flipped #171717 Header */}
         <div className="bg-[#171717] text-white p-4 sm:p-5 flex items-center justify-between border-b border-[#262626]">
           <div className="flex items-center gap-3">
@@ -181,14 +186,14 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               <Clock className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm sm:text-base text-white tracking-tight">Registrar Horas Extras</h3>
+              <DialogTitle className="font-semibold text-sm sm:text-base text-white tracking-tight">Registrar Horas Extras</DialogTitle>
               <p className="text-[11px] text-neutral-400 font-sans">
                 Calcula por hora de salida real o ingresa las horas directamente.
               </p>
             </div>
           </div>
 
-          <button onClick={onClose} className="text-neutral-400 hover:text-white p-1 rounded-[6px] transition">
+          <button type="button" onClick={onClose} aria-label="Cerrar" className="text-neutral-400 hover:text-white p-1 rounded-[6px] transition">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -201,12 +206,12 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               <Calendar className="w-3.5 h-3.5 text-neutral-400" />
               Fecha de Trabajo *
             </label>
-            <input
+            <Input
               type="date"
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="form-input w-full text-xs font-mono font-medium h-9 px-3 rounded-[6px]"
+              className="w-full text-xs font-mono font-medium h-9 px-3"
             />
 
             {/* Schedule Banner */}
@@ -271,12 +276,12 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <input
+                  <Input
                     type="time"
                     required
                     value={departureTime}
                     onChange={(e) => setDepartureTime(e.target.value)}
-                    className="form-input text-xs font-mono font-medium h-9 px-3 rounded-[6px]"
+                    className="text-xs font-mono font-medium h-9 px-3"
                   />
                 </div>
               </div>
@@ -286,11 +291,11 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                   <span className="caption-mono text-xs text-neutral-600 dark:text-neutral-300">
                     Hora de Ingreso:
                   </span>
-                  <input
+                  <Input
                     type="time"
                     value={weekendStartTime}
                     onChange={(e) => setWeekendStartTime(e.target.value)}
-                    className="form-input text-xs font-mono font-medium h-8 px-2.5 rounded-[6px]"
+                    className="text-xs font-mono font-medium h-8 px-2.5"
                   />
                 </div>
               )}
@@ -322,7 +327,7 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   type="number"
                   step="0.5"
                   min="0.5"
@@ -330,7 +335,7 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                   required={inputMode === 'direct_hours'}
                   value={hours}
                   onChange={(e) => setHours(parseFloat(e.target.value) || 0.5)}
-                  className="form-input w-24 text-center font-mono font-medium text-xs h-9 rounded-[6px]"
+                  className="w-24 text-center font-mono font-medium text-xs h-9"
                 />
 
                 <div className="flex flex-wrap items-center gap-1">
@@ -444,24 +449,22 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               <FileText className="w-3.5 h-3.5 text-neutral-400" />
               Observaciones / Motivo
             </label>
-            <input
+            <Input
               type="text"
               placeholder="Ej. Despacho urgente, reparación de máquina, cierre de mes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
+              className="w-full text-xs h-9 px-3"
             />
           </div>
 
           {/* Verificación inmediata: solo Jefa/Admin */}
           {canVerify && (
           <div className="p-3 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] flex items-center gap-2.5">
-            <input
-              type="checkbox"
+            <Checkbox
               id="verifyNow"
               checked={verifiedByManager}
-              onChange={(e) => setVerifiedByManager(e.target.checked)}
-              className="w-4 h-4 accent-[#171717] rounded cursor-pointer"
+              onCheckedChange={(v) => setVerifiedByManager(v === true)}
             />
             <label htmlFor="verifyNow" className="text-xs text-neutral-800 dark:text-neutral-200 font-medium cursor-pointer font-sans">
               Marcar como revisado y verificado por el encargado inmediatamente
@@ -483,23 +486,23 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
 
           {/* Submit */}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
-            <button
+            <Button variant="outline"
               type="button"
               onClick={onClose}
-              className="button-secondary px-4 py-2 rounded-full text-xs font-medium"
+              className="px-4 py-2 text-xs font-medium"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={selectedEmployeeIds.length === 0 || effectiveHours <= 0 || isSaving}
-              className="button-primary px-5 py-2 rounded-full text-xs font-medium"
+              className="px-5 py-2 text-xs font-medium"
             >
               {isSaving ? 'Guardando...' : `Guardar (${selectedEmployeeIds.length}) Registros (${formatHoursDisplay(effectiveHours)})`}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

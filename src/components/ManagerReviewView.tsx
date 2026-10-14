@@ -3,6 +3,9 @@ import { CheckCircle2, AlertCircle, UserCheck, Search, ShieldCheck, DollarSign, 
 import { OvertimeRecord, Employee, CompanySettings, OVERTIME_TYPES, OvertimeType, UserRole } from '../types';
 import { calculateRecordCost, formatCurrency } from '../utils/exporters';
 import { formatHoursDisplay, getDailyOvertimeAlerts } from '../utils/schedule';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { useConfirm } from '@/components/ui/confirm';
 
 interface ManagerReviewViewProps {
   records: OvertimeRecord[];
@@ -29,6 +32,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
   onUpdateRecord,
   onGoToGmailReport,
 }) => {
+  const confirm = useConfirm();
   const canSeeCosts = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
   // Solo la Jefa (y el Admin) aprueban, editan y borran
   const canEdit = userRole === 'manager' || userRole === 'admin';
@@ -170,12 +174,12 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
       <div className="bg-white dark:bg-[#111111] rounded-[12px] p-3 border border-[#ebebeb] dark:border-[#262626] shadow-vercel-subtle flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
           <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-neutral-400" />
-          <input
+          <Input
             type="text"
             placeholder="Buscar por empleado, fecha o nota..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="form-input w-full text-xs pl-9 pr-3 h-9 rounded-[6px]"
+            className="w-full text-xs pl-9 pr-3 h-9"
           />
         </div>
 
@@ -211,10 +215,10 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
           </div>
 
           {/* Employee Filter */}
-          <select
+          <NativeSelect
             value={filterEmployee}
             onChange={(e) => setFilterEmployee(e.target.value)}
-            className="form-input text-xs h-9 px-3 rounded-[6px]"
+            className="text-xs"
           >
             <option value="all">Todos los empleados</option>
             {employees.map((e) => (
@@ -222,7 +226,7 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                 {e.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
       </div>
 
@@ -306,17 +310,17 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                       {/* Type */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         {isEditing ? (
-                          <select
+                          <NativeSelect
                             value={editType}
                             onChange={(e) => setEditType(e.target.value as OvertimeType)}
-                            className="form-input text-xs h-7 px-2 rounded-[4px]"
+                            className="text-xs h-7"
                           >
                             {(Object.keys(OVERTIME_TYPES) as OvertimeType[]).map((t) => (
                               <option key={t} value={t}>
                                 {OVERTIME_TYPES[t].label}
                               </option>
                             ))}
-                          </select>
+                          </NativeSelect>
                         ) : (
                           <span className={`px-2 py-0.5 rounded-[4px] border text-[10px] font-medium ${typeInfo.badgeBg} ${typeInfo.badgeText} border-transparent`}>
                             {typeInfo.label}
@@ -361,11 +365,11 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                       {/* Notes */}
                       <td className="px-4 py-3">
                         {isEditing ? (
-                          <input
+                          <Input
                             type="text"
                             value={editNotes}
                             onChange={(e) => setEditNotes(e.target.value)}
-                            className="w-full form-input text-xs h-7 px-2 rounded-[4px]"
+                            className="w-full text-xs h-7 px-2"
                           />
                         ) : (
                           <p className="text-neutral-500 dark:text-neutral-400 text-xs max-w-xs truncate" title={rec.notes}>
@@ -420,8 +424,9 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
 
                               {(userRole === 'manager' || userRole === 'admin') && (
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm(`¿Eliminar el registro de ${rec.employeeName}?`)) onDeleteRecord(rec.id);
+                                  onClick={async () => {
+                                    if (await confirm({ title: `¿Eliminar el registro de ${rec.employeeName}?`, description: `${rec.hours} h el ${rec.date}.`, confirmText: 'Eliminar', destructive: true }))
+                                      onDeleteRecord(rec.id);
                                   }}
                                   className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-[6px] transition"
                                   title="Eliminar registro"

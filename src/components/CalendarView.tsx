@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle2, Clock, AlertCircle, Filter, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Plus, Clock, Filter, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { OvertimeRecord, Employee, OVERTIME_TYPES, UserRole, OvertimeRules } from '../types';
 import { formatHoursDisplay, formatTime12h } from '../utils/schedule';
 import { getHolidayName } from '../utils/holidays';
+import { useConfirm } from '@/components/ui/confirm';
 
 interface CalendarViewProps {
   selectedMonth: string; // YYYY-MM
@@ -31,6 +32,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   rules,
   canRegister,
 }) => {
+  const confirm = useConfirm();
   // Solo la Jefa (y el Admin) aprueban
   const canAudit = userRole === 'manager' || userRole === 'admin';
 
@@ -283,7 +285,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   {/* Overtime chips for this day */}
                   <div className="mt-1.5 space-y-1 overflow-hidden flex-1">
                     {dayRecords.slice(0, 2).map((rec) => {
-                      const typeInfo = OVERTIME_TYPES[rec.type];
                       return (
                         <div
                           key={rec.id}
@@ -382,8 +383,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                         {canDeleteRecord(rec) && (
                           <button
-                            onClick={() => {
-                              if (window.confirm(`¿Eliminar el registro de ${rec.employeeName}?`)) onDeleteRecord(rec.id);
+                            onClick={async () => {
+                              if (await confirm({ title: `¿Eliminar el registro de ${rec.employeeName}?`, description: `${rec.hours} h el ${rec.date}.`, confirmText: 'Eliminar', destructive: true }))
+                                onDeleteRecord(rec.id);
                             }}
                             className="text-[#888888] hover:text-[#ee0000] p-1 transition-colors cursor-pointer"
                             title="Eliminar registro"

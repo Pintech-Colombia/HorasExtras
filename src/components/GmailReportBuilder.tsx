@@ -3,6 +3,8 @@ import { Mail, Copy, Check, ExternalLink, Download, Lock, AlertTriangle, ShieldC
 import { OvertimeRecord, Employee, CompanySettings } from '../types';
 import { buildGmailFormattedText, copyRichHtmlToClipboard, exportToCSV, getGmailWebUrl, formatCurrency, calculateRecordCost } from '../utils/exporters';
 import { formatHoursDisplay } from '../utils/schedule';
+import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 
 interface GmailReportBuilderProps {
   records: OvertimeRecord[];
@@ -19,9 +21,9 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
   selectedMonth,
   onMarkMonthSent,
 }) => {
+  const confirm = useConfirm();
   const [copiedStatus, setCopiedStatus] = useState<boolean>(false);
   const [isMarking, setIsMarking] = useState<boolean>(false);
-  const [sentMessage, setSentMessage] = useState<string | null>(null);
 
   const employeesMap = new Map<string, Employee>(employees.map((e) => [e.id, e]));
 
@@ -77,17 +79,15 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
 
   // Bloquea los registros aprobados del mes una vez enviados al contador
   const handleMarkSent = async () => {
-    if (
-      !window.confirm(
-        `¿Marcar ${readyToSendCount} registro(s) aprobados de ${monthYearLabel} como enviados a contabilidad?\n\nDespués no se podrán editar ni borrar.`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: `¿Marcar ${monthYearLabel} como enviado a contabilidad?`,
+      description: `${readyToSendCount} registro(s) aprobados quedarán bloqueados. Después no se podrán editar ni borrar.`,
+      confirmText: 'Marcar como enviado',
+    });
+    if (!ok) return;
     setIsMarking(true);
-    setSentMessage(null);
-    const count = await onMarkMonthSent();
+    await onMarkMonthSent();
     setIsMarking(false);
-    if (count !== null) setSentMessage(`${count} registro(s) marcados como enviados y bloqueados.`);
   };
 
   return (
@@ -192,15 +192,14 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
                 <span className="font-mono font-semibold">{sentCount}</span>
               </div>
             </div>
-            <button
+            <Button
               onClick={handleMarkSent}
               disabled={isMarking || readyToSendCount === 0}
-              className="button-primary w-full h-9 rounded-full text-xs font-medium flex items-center justify-center gap-2"
+              className="w-full h-9 text-xs font-medium flex items-center justify-center gap-2"
             >
               <Lock className="w-3.5 h-3.5" />
               <span>{isMarking ? 'Marcando...' : 'Marcar como enviado a contabilidad'}</span>
-            </button>
-            {sentMessage && <p className="text-xs text-emerald-600 dark:text-emerald-400">{sentMessage}</p>}
+            </Button>
           </div>
 
           {/* Quick Summary Card */}
@@ -244,13 +243,13 @@ export const GmailReportBuilder: React.FC<GmailReportBuilderProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <button
+                <Button variant="outline"
                   onClick={handleCopyForGmail}
-                  className="button-secondary text-xs font-medium px-3 py-1.5 rounded-[6px] flex items-center gap-1.5"
+                  className="text-xs font-medium px-3 py-1.5 flex items-center gap-1.5"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>{copiedStatus ? '¡Copiado!' : 'Copiar'}</span>
-                </button>
+                </Button>
               </div>
             </div>
 

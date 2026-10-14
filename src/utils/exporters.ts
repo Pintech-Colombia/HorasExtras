@@ -290,7 +290,7 @@ export const copyRichHtmlToClipboard = async (htmlContent: string, plainTextCont
     try {
       await navigator.clipboard.writeText(plainTextContent);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

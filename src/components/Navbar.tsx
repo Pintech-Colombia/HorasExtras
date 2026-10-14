@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, CheckCircle2, Mail, Users, Plus, Settings, Sun, Moon, Cloud, Database, LogOut, LogIn, ChevronDown } from 'lucide-react';
+import { Calendar, CheckCircle2, Mail, Users, Plus, Settings, Sun, Moon, LogOut, LogIn } from 'lucide-react';
 import { CompanySettings, UserRole } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { PintechLogo } from './PintechLogo';
@@ -31,7 +31,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   setSelectedMonth,
   pendingCount,
   verifiedCount,
-  settings,
   onOpenNewRecordModal,
   isDarkMode,
   onToggleTheme,

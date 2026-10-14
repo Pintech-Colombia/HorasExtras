@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Mail, ShieldCheck, Save, RefreshCw, CheckCircle, Lock, Percent } from 'lucide-react';
+import { Building2, Mail, ShieldCheck, Save, RefreshCw, Lock, Percent } from 'lucide-react';
 import { CompanySettings, UserRole, OvertimeRules, DEFAULT_OVERTIME_RULES } from '../types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useConfirm } from '@/components/ui/confirm';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const WEEKDAYS: { key: string; label: string }[] = [
   { key: '1', label: 'Lunes' },
@@ -31,9 +35,9 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
   onSaveSettings,
   onResetDefaults,
 }) => {
+  const confirm = useConfirm();
   const canEditSettings = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
   const [formData, setFormData] = useState<CompanySettings>({ ...settings });
-  const [savedStatus, setSavedStatus] = useState(false);
 
   // Sincronizar el formulario cuando llegan los datos del servidor
   useEffect(() => {
@@ -47,8 +51,6 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
     e.preventDefault();
     if (!canEditSettings) return;
     onSaveSettings(formData);
-    setSavedStatus(true);
-    setTimeout(() => setSavedStatus(false), 3000);
   };
 
   return (
@@ -93,22 +95,22 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Nombre de la Empresa *</label>
-              <input
+              <Input
                 type="text"
                 required
                 value={formData.companyName}
                 onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
+                className="w-full text-xs h-9 px-3"
               />
             </div>
 
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">NIT / Identificación Fiscal</label>
-              <input
+              <Input
                 type="text"
                 value={formData.companyNIT}
                 onChange={(e) => setFormData({ ...formData, companyNIT: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                className="w-full text-xs h-9 px-3 font-mono"
               />
             </div>
           </div>
@@ -124,23 +126,23 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Nombre del Contador *</label>
-              <input
+              <Input
                 type="text"
                 required
                 value={formData.accountantName}
                 onChange={(e) => setFormData({ ...formData, accountantName: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
+                className="w-full text-xs h-9 px-3"
               />
             </div>
 
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Correo Electrónico (Gmail) *</label>
-              <input
+              <Input
                 type="email"
                 required
                 value={formData.accountantEmail}
                 onChange={(e) => setFormData({ ...formData, accountantEmail: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                className="w-full text-xs h-9 px-3 font-mono"
               />
             </div>
           </div>
@@ -156,22 +158,22 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Nombre del Encargado *</label>
-              <input
+              <Input
                 type="text"
                 required
                 value={formData.managerName}
                 onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
+                className="w-full text-xs h-9 px-3"
               />
             </div>
 
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Cargo / Título del Encargado</label>
-              <input
+              <Input
                 type="text"
                 value={formData.managerTitle}
                 onChange={(e) => setFormData({ ...formData, managerTitle: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
+                className="w-full text-xs h-9 px-3"
               />
             </div>
           </div>
@@ -195,7 +197,7 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                 <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                   {f.label} (%) <span className="text-neutral-400">· ley: {DEFAULT_OVERTIME_RULES[f.key] as number}%</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   max={500}
@@ -204,42 +206,42 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                   disabled={!canEditSettings}
                   value={rules[f.key] as number}
                   onChange={(e) => setRules({ [f.key]: parseFloat(e.target.value) || 0 } as Partial<OvertimeRules>)}
-                  className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                  className="w-full text-xs h-9 px-3 font-mono"
                 />
               </div>
             ))}
 
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Inicio jornada nocturna</label>
-              <input
+              <Input
                 type="time"
                 required
                 disabled={!canEditSettings}
                 value={rules.nightStart}
                 onChange={(e) => setRules({ nightStart: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                className="w-full text-xs h-9 px-3 font-mono"
               />
             </div>
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Fin jornada nocturna</label>
-              <input
+              <Input
                 type="time"
                 required
                 disabled={!canEditSettings}
                 value={rules.nightEnd}
                 onChange={(e) => setRules({ nightEnd: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                className="w-full text-xs h-9 px-3 font-mono"
               />
             </div>
             <div>
               <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">Hora de ingreso habitual</label>
-              <input
+              <Input
                 type="time"
                 required
                 disabled={!canEditSettings}
                 value={rules.shiftStart}
                 onChange={(e) => setRules({ shiftStart: e.target.value })}
-                className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                className="w-full text-xs h-9 px-3 font-mono"
               />
             </div>
           </div>
@@ -252,12 +254,12 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
               {WEEKDAYS.map((d) => (
                 <div key={d.key}>
                   <label className="text-[11px] text-neutral-500 block mb-1">{d.label}</label>
-                  <input
+                  <Input
                     type="time"
                     disabled={!canEditSettings}
                     value={rules.shiftEnds[d.key] || ''}
                     onChange={(e) => setRules({ shiftEnds: { ...rules.shiftEnds, [d.key]: e.target.value || null } })}
-                    className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                    className="w-full text-xs h-9 px-3 font-mono"
                   />
                 </div>
               ))}
@@ -266,12 +268,10 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
           </div>
 
           <label className="flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 font-sans">
-            <input
-              type="checkbox"
+            <Checkbox
               disabled={!canEditSettings}
               checked={rules.saturdayAsHoliday}
-              onChange={(e) => setRules({ saturdayAsHoliday: e.target.checked })}
-              className="w-4 h-4 accent-[#171717]"
+              onCheckedChange={(v) => setRules({ saturdayAsHoliday: v === true })}
             />
             Pagar las horas del sábado con recargo dominical/festivo (no es obligatorio por ley)
           </label>
@@ -283,29 +283,30 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
             <>
               <button
                 type="button"
-                onClick={onResetDefaults}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: '¿Restablecer valores predeterminados?',
+                      description: 'Se reemplazan los datos de la empresa y los recargos por los valores iniciales (Ley 2466).',
+                      confirmText: 'Restablecer',
+                      destructive: true,
+                    })
+                  )
+                    onResetDefaults();
+                }}
                 className="text-xs text-neutral-400 hover:text-red-500 font-medium flex items-center gap-1.5 transition font-sans"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Restablecer Valores Predeterminados</span>
               </button>
 
-              <button
+              <Button
                 type="submit"
-                className="button-primary px-5 py-2 rounded-full text-xs font-medium flex items-center gap-2"
+                className="px-5 py-2 text-xs font-medium flex items-center gap-2"
               >
-                {savedStatus ? (
-                  <>
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>¡Guardado Correctamente!</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-3.5 h-3.5" />
-                    <span>Guardar Configuración</span>
-                  </>
-                )}
-              </button>
+                <Save className="w-3.5 h-3.5" />
+                <span>Guardar Configuración</span>
+              </Button>
             </>
           ) : (
             <div className="text-xs text-neutral-400 italic font-mono-tech">
