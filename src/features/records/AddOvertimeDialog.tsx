@@ -1,31 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, FileText, CheckCircle2, X, Info, Sparkles, AlertTriangle } from 'lucide-react';
-import { Employee, OvertimeType, OVERTIME_TYPES, OvertimeRecord, OvertimeRules } from '@/types';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Clock, Hash, Info, Search } from 'lucide-react';
+import { Employee, OVERTIME_TYPES, OvertimeRecord, OvertimeRules, OvertimeType } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  getWorkScheduleForDate,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { TYPE_STYLES, typeShortLabel } from '@/features/calendar/typeStyles';
+import {
+  OvertimeSegment,
   calculateOvertimeFromDeparture,
   formatHoursDisplay,
+  formatTime12h,
+  getWorkScheduleForDate,
   suggestOvertimeType,
-  OvertimeSegment,
-  DAILY_OVERTIME_ALERT_HOURS,
 } from '@/lib/schedule';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import { NewRecord, buildOvertimeRecords, getRegistrationWarnings } from './buildRecords';
 
 interface AddOvertimeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   employees: Employee[];
   initialDate?: string;
-  onSaveRecords: (records: Omit<OvertimeRecord, 'id' | 'createdAt'>[]) => Promise<boolean>;
+  onSaveRecords: (records: NewRecord[]) => Promise<boolean>;
   rules: OvertimeRules;
-  canVerify: boolean; // solo Jefa/Admin pueden registrar ya verificado
-  existingRecords: OvertimeRecord[]; // registros del mes, para las alertas
+  canVerify: boolean; // solo Jefa/Admin pueden registrar ya aprobado
+  existingRecords: OvertimeRecord[]; // registros del mes, para los avisos
 }
 
-export const AddOvertimeDialog: React.FC<AddOvertimeDialogProps> = ({
+type InputMode = 'departure_time' | 'direct_hours';
+
+const HOUR_PRESETS = [0.5, 1, 1.5, 2, 2.5, 3, 4];
+const TYPES = Object.keys(OVERTIME_TYPES) as OvertimeType[];
+
+const todayStr = () => {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+};
+
+const addMinutes = (time: string, minutes: number) => {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
+
+const typeLabel = (t: OvertimeType) => typeShortLabel(t, OVERTIME_TYPES[t].multiplier);
+
+// Selector segmentado (mismo estilo que los filtros de Auditoría y Personal)
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string; icon: React.ReactNode }[];
+}) {
+  return (
+    <div role="radiogroup" className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/40 p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            'flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-sm font-medium transition-colors [&_svg]:size-4',
+            value === o.value
+              ? 'bg-card text-foreground shadow-vercel-subtle'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {o.icon} {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function AddOvertimeDialog({
   isOpen,
   onClose,
   employees,
@@ -34,480 +99,391 @@ export const AddOvertimeDialog: React.FC<AddOvertimeDialogProps> = ({
   rules,
   canVerify,
   existingRecords,
-}) => {
-  const [date, setDate] = useState<string>('');
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
-  
-  // Input Mode: 'departure_time' (Hora de Salida) or 'direct_hours' (Cantidad de horas directa)
-  const [inputMode, setInputMode] = useState<'departure_time' | 'direct_hours'>('departure_time');
-  
-  // Departure mode state
-  const [departureTime, setDepartureTime] = useState<string>('18:30'); // Default 6:30 PM
-  const [weekendStartTime, setWeekendStartTime] = useState<string>('07:30'); // For weekends
-
-  // Direct hours mode state
-  const [hours, setHours] = useState<number>(1.5);
-  
+}: AddOvertimeDialogProps) {
+  const [date, setDate] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
+  const [inputMode, setInputMode] = useState<InputMode>('departure_time');
+  const [departureTime, setDepartureTime] = useState('18:30');
+  const [startTime, setStartTime] = useState(rules.shiftStart); // solo días sin jornada ordinaria
+  const [hoursText, setHoursText] = useState('1.5');
   const [overtimeType, setOvertimeType] = useState<OvertimeType>('diurna');
-  const [notes, setNotes] = useState<string>('');
-  const [verifiedByManager, setVerifiedByManager] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [notes, setNotes] = useState('');
+  const [approveNow, setApproveNow] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Al abrir: formulario limpio con la fecha elegida (o hoy). El modo se conserva entre registros.
   useEffect(() => {
-    if (initialDate) {
-      setDate(initialDate);
-    } else {
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      setDate(dateStr);
-    }
-  }, [initialDate, isOpen]);
+    if (!isOpen) return;
+    setDate(initialDate || todayStr());
+    setSelectedIds([]);
+    setSearch('');
+    setNotes('');
+    setApproveNow(false);
+  }, [isOpen, initialDate]);
 
-  // Default departure time and overtime type suggestion depending on weekday/weekend
+  // Sugerencias según el día: salida 1,5 h después de la jornada, o jornada de medio día si no hay jornada
   useEffect(() => {
     if (!date) return;
     const sched = getWorkScheduleForDate(date, rules);
     if (!sched.hasOrdinaryShift) {
-      setWeekendStartTime(rules.shiftStart);
+      setStartTime(rules.shiftStart);
       setDepartureTime('13:30');
     } else {
-      // Sugerencia: 1.5 h después de la salida ordinaria del día
       const [y, m, d] = date.split('-').map(Number);
-      const end = rules.shiftEnds[String(new Date(y, m - 1, d).getDay())] || '17:00';
-      const [h, min] = end.split(':').map(Number);
-      const suggested = h * 60 + min + 90;
-      setDepartureTime(`${String(Math.floor(suggested / 60) % 24).padStart(2, '0')}:${String(suggested % 60).padStart(2, '0')}`);
+      setDepartureTime(addMinutes(rules.shiftEnds[String(new Date(y, m - 1, d).getDay())] || '17:00', 90));
     }
     setOvertimeType(suggestOvertimeType(date, rules));
   }, [date, rules]);
 
-  if (!isOpen) return null;
+  const filteredEmployees = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const sorted = [...employees].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    return term
+      ? sorted.filter(
+          (e) =>
+            e.name.toLowerCase().includes(term) ||
+            e.documentId.includes(term) ||
+            e.position.toLowerCase().includes(term)
+        )
+      : sorted;
+  }, [employees, search]);
 
   const schedule = getWorkScheduleForDate(date, rules);
 
-  // Horas efectivas según el modo; en modo "hora de salida" el tipo (diurna/nocturna/festiva) se calcula solo
-  let effectiveHours = hours;
-  let calculationBreakdown = '';
-  let segments: OvertimeSegment[] = [{ type: overtimeType, hours }];
-
+  // Horas y tramos según el modo; con hora de salida el tipo (diurna/nocturna/festiva) se calcula solo
+  const parsedHours = Number(hoursText.replace(',', '.'));
+  const hoursValid = Number.isFinite(parsedHours) && parsedHours > 0 && parsedHours <= 24;
+  let segments: OvertimeSegment[];
+  let breakdown = '';
   if (inputMode === 'departure_time') {
-    const calc = calculateOvertimeFromDeparture(date, departureTime, weekendStartTime, rules);
-    effectiveHours = calc.hours;
-    calculationBreakdown = calc.breakdown;
+    const calc = calculateOvertimeFromDeparture(date, departureTime, startTime, rules);
     segments = calc.segments;
+    breakdown = calc.breakdown;
+  } else {
+    segments = hoursValid ? [{ type: overtimeType, hours: parsedHours }] : [];
   }
+  const totalHours = segments.reduce((s, seg) => s + seg.hours, 0);
 
-  // Alertas (no bloquean): registro repetido el mismo día y más de 2 h extra en un día ordinario
-  const warnings: string[] = [];
-  if (date && effectiveHours > 0) {
-    selectedEmployeeIds.forEach((empId) => {
-      const emp = employees.find((e) => e.id === empId);
-      const sameDay = existingRecords.filter((r) => r.employeeId === empId && r.date === date);
-      const name = emp?.name || 'Empleado';
-      if (sameDay.length > 0) {
-        const prev = sameDay.reduce((acc, r) => acc + r.hours, 0);
-        warnings.push(`${name} ya tiene ${formatHoursDisplay(prev)} registradas este día. ¿Es un registro repetido?`);
-      }
-      const dayTotal = sameDay.reduce((acc, r) => acc + r.hours, 0) + effectiveHours;
-      if (schedule.hasOrdinaryShift && dayTotal > DAILY_OVERTIME_ALERT_HOURS) {
-        warnings.push(`${name} sumaría ${formatHoursDisplay(dayTotal)} extra este día (límite habitual: ${DAILY_OVERTIME_ALERT_HOURS} h).`);
-      }
-    });
-  }
+  const warnings = getRegistrationWarnings({
+    date,
+    today: todayStr(),
+    hours: totalHours,
+    employees,
+    selectedIds,
+    existingRecords,
+    rules,
+  });
 
-  const toggleEmployeeSelect = (empId: string) => {
-    if (selectedEmployeeIds.includes(empId)) {
-      setSelectedEmployeeIds(selectedEmployeeIds.filter((id) => id !== empId));
-    } else {
-      setSelectedEmployeeIds([...selectedEmployeeIds, empId]);
-    }
-  };
+  const visibleIds = filteredEmployees.map((e) => e.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+  const toggle = (id: string) =>
+    setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  const toggleAllVisible = () =>
+    setSelectedIds((ids) =>
+      allVisibleSelected ? ids.filter((id) => !visibleIds.includes(id)) : [...new Set([...ids, ...visibleIds])]
+    );
 
-  const handleSelectAllEmployees = () => {
-    if (selectedEmployeeIds.length === employees.length) {
-      setSelectedEmployeeIds([]);
-    } else {
-      setSelectedEmployeeIds(employees.map((e) => e.id));
-    }
-  };
+  const canSave = Boolean(date) && selectedIds.length > 0 && totalHours > 0 && !isSaving;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedEmployeeIds.length === 0 || effectiveHours <= 0 || isSaving) return;
-    const verifyNow = canVerify && verifiedByManager;
-
-    const employeesMap = new Map<string, Employee>(employees.map((emp) => [emp.id, emp]));
-
-    const defaultNote = inputMode === 'departure_time' 
-      ? `Salida: ${departureTime}`
-      : '';
-
-    const finalNotes = notes.trim() 
-      ? notes.trim() 
-      : defaultNote;
-
-    const newRecords: Omit<OvertimeRecord, 'id' | 'createdAt'>[] = selectedEmployeeIds.flatMap((empId) => {
-      const emp = employeesMap.get(empId);
-      return segments
-        .filter((seg) => seg.hours > 0)
-        .map((seg) => ({
-          date,
-          employeeId: empId,
-          employeeName: emp ? emp.name : 'Empleado',
-          hours: seg.hours,
-          type: seg.type,
-          status: verifyNow ? ('verified_manager' as const) : ('pending_review' as const),
-          notes: finalNotes,
-          verifiedByManager: verifyNow,
-          verifiedAt: verifyNow ? new Date().toISOString() : undefined,
-        }));
+    if (!canSave) return;
+    const records = buildOvertimeRecords({
+      date,
+      employees,
+      selectedIds,
+      segments,
+      notes: notes.trim() || (inputMode === 'departure_time' ? `Salida: ${formatTime12h(departureTime)}` : ''),
+      verifyNow: canVerify && approveNow,
     });
-
     setIsSaving(true);
-    const ok = await onSaveRecords(newRecords);
+    const ok = await onSaveRecords(records);
     setIsSaving(false);
-    // Si falló, el formulario queda abierto para reintentar (el error se muestra en pantalla)
-    if (!ok) return;
-    onClose();
-    setSelectedEmployeeIds([]);
-    setNotes('');
-    setVerifiedByManager(false);
+    // Si falló, el formulario queda abierto para reintentar (el error ya se mostró)
+    if (ok) onClose();
   };
-
-  const directPresets = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        showCloseButton={false}
-        aria-describedby={undefined}
         // En celular se muestra como panel inferior (más cómodo con el pulgar)
         className="max-w-lg max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[94dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-y-0 max-sm:rounded-b-none"
       >
-        {/* Vercel Polarity Flipped #171717 Header */}
-        <div className="bg-[#171717] text-white p-4 sm:p-5 flex items-center justify-between border-b border-[#262626]">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-[6px] bg-white/10 border border-white/10 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <DialogTitle className="font-semibold text-sm sm:text-base text-white tracking-tight">Registrar Horas Extras</DialogTitle>
-              <p className="text-[11px] text-neutral-400 font-sans">
-                Calcula por hora de salida real o ingresa las horas directamente.
-              </p>
-            </div>
-          </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <DialogHeader>
+            <DialogTitle>Registrar horas extras</DialogTitle>
+            <DialogDescription>
+              Por hora de salida (se calcula solo) o escribiendo la cantidad de horas.
+            </DialogDescription>
+          </DialogHeader>
 
-          <button type="button" onClick={onClose} aria-label="Cerrar" className="text-neutral-400 hover:text-white p-1 rounded-[6px] transition">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+          <DialogBody className="flex flex-col gap-5">
+            {/* 1. Fecha */}
+            <Field label="Fecha" htmlFor="ot-date">
+              <Input
+                id="ot-date"
+                type="date"
+                required
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="font-mono"
+              />
+              {date && (
+                <p className="flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                  <Info className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    <strong className="font-medium text-foreground">{schedule.dayName}:</strong> {schedule.notes}
+                  </span>
+                </p>
+              )}
+            </Field>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto flex-1">
-          {/* Date Picker & Schedule Banner */}
-          <div className="space-y-2">
-            <label className="caption-mono block text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-              Fecha de Trabajo *
-            </label>
-            <Input
-              type="date"
-              required
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full text-xs font-mono font-medium h-9 px-3"
-            />
-
-            {/* Schedule Banner */}
-            {date && (
-              <div className="p-2.5 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] flex items-start gap-2 text-neutral-600 dark:text-neutral-300">
-                <Info className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                <div className="text-[11px] leading-relaxed font-sans">
-                  <span className="font-semibold text-neutral-900 dark:text-neutral-100">{schedule.dayName}: </span>
-                  <span>{schedule.notes}</span>
-                </div>
+            {/* 2. Empleados */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label>
+                  Empleados{' '}
+                  {selectedIds.length > 0 && (
+                    <span className="text-muted-foreground">· {selectedIds.length} seleccionado(s)</span>
+                  )}
+                </Label>
+                {filteredEmployees.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={toggleAllVisible}
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    {allVisibleSelected ? 'Quitar todos' : search ? 'Marcar resultados' : 'Marcar todos'}
+                  </button>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* Mode Switcher Tabs */}
-          <div className="space-y-2">
-            <label className="caption-mono block text-neutral-700 dark:text-neutral-200">
-              Método de Registro de Horas *
-            </label>
-            <div className="grid grid-cols-2 gap-1.5 bg-[#f5f5f5] dark:bg-[#1c1c1c] p-1 rounded-[8px] border border-[#ebebeb] dark:border-[#2c2c2c]">
-              <button
-                type="button"
-                onClick={() => setInputMode('departure_time')}
-                className={`py-2 px-2 rounded-[6px] font-medium text-center text-xs transition flex items-center justify-center gap-1.5 ${
-                  inputMode === 'departure_time'
-                    ? 'bg-white dark:bg-[#111111] text-[#171717] dark:text-white shadow-vercel-subtle'
-                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>Por Hora de Salida</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setInputMode('direct_hours')}
-                className={`py-2 px-2 rounded-[6px] font-medium text-center text-xs transition flex items-center justify-center gap-1.5 ${
-                  inputMode === 'direct_hours'
-                    ? 'bg-white dark:bg-[#111111] text-[#171717] dark:text-white shadow-vercel-subtle'
-                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Cantidad Directa</span>
-              </button>
-            </div>
-          </div>
-
-          {/* MODE A: DEPARTURE TIME CALCULATION */}
-          {inputMode === 'departure_time' && (
-            <div className="p-3.5 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[10px] space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <span className="caption-mono text-neutral-700 dark:text-neutral-200 block text-xs">
-                    Hora Real de Salida del Empleado
-                  </span>
-                  <span className="text-[11px] text-neutral-400 font-sans">
-                    {!schedule.hasOrdinaryShift
-                      ? 'Sin jornada ordinaria (se cuenta desde el ingreso)'
-                      : `Hora oficial de salida: ${schedule.shiftEnd}`}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
+              {employees.length > 6 && (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    type="time"
-                    required
-                    value={departureTime}
-                    onChange={(e) => setDepartureTime(e.target.value)}
-                    className="text-xs font-mono font-medium h-9 px-3"
-                  />
-                </div>
-              </div>
-
-              {!schedule.hasOrdinaryShift && (
-                <div className="flex items-center justify-between pt-2 border-t border-[#ebebeb] dark:border-[#262626]">
-                  <span className="caption-mono text-xs text-neutral-600 dark:text-neutral-300">
-                    Hora de Ingreso:
-                  </span>
-                  <Input
-                    type="time"
-                    value={weekendStartTime}
-                    onChange={(e) => setWeekendStartTime(e.target.value)}
-                    className="text-xs font-mono font-medium h-8 px-2.5"
+                    placeholder="Buscar empleado"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9"
+                    aria-label="Buscar empleado"
                   />
                 </div>
               )}
-
-              {/* Automatic Calculation Box */}
-              <div className="p-2.5 bg-white dark:bg-[#0d0d0d] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="caption-mono text-[10px] text-neutral-400">Resultado:</span>
-                  <span className="text-xs text-neutral-700 dark:text-neutral-300 font-medium font-sans">{calculationBreakdown}</span>
-                </div>
-
-                <div className="bg-[#171717] text-white dark:bg-white dark:text-[#171717] font-mono font-semibold px-2.5 py-1 rounded-[6px] text-xs shrink-0 shadow-vercel-subtle">
-                  = {formatHoursDisplay(effectiveHours)}
-                </div>
-              </div>
+              <ul className="max-h-52 divide-y overflow-y-auto rounded-lg border">
+                {filteredEmployees.length === 0 ? (
+                  <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    {employees.length === 0
+                      ? 'No hay empleados activos. Créalos en Personal.'
+                      : 'Ningún empleado coincide.'}
+                  </li>
+                ) : (
+                  filteredEmployees.map((emp) => {
+                    const checked = selectedIds.includes(emp.id);
+                    return (
+                      <li key={emp.id}>
+                        <label
+                          className={cn(
+                            'flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50',
+                            checked && 'bg-muted/60'
+                          )}
+                        >
+                          <Checkbox checked={checked} onCheckedChange={() => toggle(emp.id)} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">{emp.name}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {emp.position} · CC {emp.documentId}
+                            </span>
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
             </div>
-          )}
 
-          {/* MODE B: DIRECT HOURS INPUT */}
-          {inputMode === 'direct_hours' && (
-            <div className="p-3.5 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[10px] space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="caption-mono text-neutral-700 dark:text-neutral-200">
-                  Horas Extras Laboradas
-                </label>
-                <span className="font-mono font-semibold text-xs text-neutral-900 dark:text-neutral-100 bg-white dark:bg-[#0d0d0d] px-2.5 py-1 rounded-[6px] border border-[#ebebeb] dark:border-[#262626] shadow-vercel-subtle">
-                  {formatHoursDisplay(hours)}
-                </span>
-              </div>
+            {/* 3. Horas */}
+            <div className="flex flex-col gap-3">
+              <Label>Horas</Label>
+              <Segmented<InputMode>
+                value={inputMode}
+                onChange={setInputMode}
+                options={[
+                  { value: 'departure_time', label: 'Hora de salida', icon: <Clock /> },
+                  { value: 'direct_hours', label: 'Cantidad', icon: <Hash /> },
+                ]}
+              />
 
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  max="24"
-                  required={inputMode === 'direct_hours'}
-                  value={hours}
-                  onChange={(e) => setHours(parseFloat(e.target.value) || 0.5)}
-                  className="w-24 text-center font-mono font-medium text-xs h-9"
-                />
-
-                <div className="flex flex-wrap items-center gap-1">
-                  {directPresets.map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => setHours(num)}
-                      className={`px-2 py-1 rounded-[6px] font-mono text-[11px] border transition ${
-                        hours === num
-                          ? 'bg-[#171717] text-white border-[#171717] dark:bg-white dark:text-[#171717] dark:border-white'
-                          : 'bg-white dark:bg-[#111111] border-[#ebebeb] dark:border-[#262626] text-neutral-700 dark:text-neutral-300 hover:bg-[#fafafa]'
-                      }`}
+              {inputMode === 'departure_time' ? (
+                <div className="flex flex-col gap-3 rounded-lg border p-3">
+                  <div className={cn('grid gap-3', !schedule.hasOrdinaryShift && 'grid-cols-2')}>
+                    {!schedule.hasOrdinaryShift && (
+                      <Field label="Hora de ingreso" htmlFor="ot-start">
+                        <Input
+                          id="ot-start"
+                          type="time"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          className="font-mono"
+                        />
+                      </Field>
+                    )}
+                    <Field
+                      label="Hora real de salida"
+                      htmlFor="ot-departure"
+                      hint={schedule.hasOrdinaryShift ? `Salida ordinaria: ${schedule.shiftEnd}` : undefined}
                     >
-                      +{num}h
-                    </button>
-                  ))}
+                      <Input
+                        id="ot-departure"
+                        type="time"
+                        required
+                        value={departureTime}
+                        onChange={(e) => setDepartureTime(e.target.value)}
+                        className="font-mono"
+                      />
+                    </Field>
+                  </div>
+                  {/* Resultado del cálculo */}
+                  <div className="rounded-md bg-muted/60 px-3 py-2.5">
+                    {segments.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">{breakdown}</p>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-muted-foreground">Horas extra</span>
+                          <span className="font-mono text-base font-semibold">{formatHoursDisplay(totalHours)}</span>
+                        </div>
+                        <ul className="mt-1.5 flex flex-col gap-1">
+                          {segments.map((seg) => (
+                            <li key={seg.type} className="flex items-center justify-between gap-2 text-xs">
+                              <span className="flex items-center gap-1.5">
+                                <span className={cn('size-2 rounded-full', TYPE_STYLES[seg.type].dot)} />
+                                {typeLabel(seg.type)}
+                              </span>
+                              <span className="font-mono">{formatHoursDisplay(seg.hours)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3 rounded-lg border p-3">
+                  <Field
+                    label="Cantidad de horas"
+                    htmlFor="ot-hours"
+                    error={hoursText && !hoursValid ? 'Escribe un número entre 0,5 y 24.' : undefined}
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Input
+                        id="ot-hours"
+                        inputMode="decimal"
+                        value={hoursText}
+                        onChange={(e) => setHoursText(e.target.value)}
+                        aria-invalid={Boolean(hoursText) && !hoursValid}
+                        className="font-mono sm:w-24"
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        {HOUR_PRESETS.map((h) => (
+                          <button
+                            key={h}
+                            type="button"
+                            onClick={() => setHoursText(String(h))}
+                            className={cn(
+                              'rounded-md border px-2.5 py-1 font-mono text-xs transition-colors',
+                              parsedHours === h ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted'
+                            )}
+                          >
+                            {formatHoursDisplay(h)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </Field>
+                  <div role="radiogroup" aria-label="Tipo de hora extra" className="grid gap-2 sm:grid-cols-2">
+                    {TYPES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        role="radio"
+                        aria-checked={overtimeType === t}
+                        onClick={() => setOvertimeType(t)}
+                        className={cn(
+                          'flex items-start gap-2 rounded-md border p-2.5 text-left transition-colors',
+                          overtimeType === t ? 'border-primary ring-1 ring-primary' : 'hover:bg-muted/50'
+                        )}
+                      >
+                        <span className={cn('mt-1 size-2 shrink-0 rounded-full', TYPE_STYLES[t].dot)} />
+                        <span>
+                          <span className="block text-sm font-medium">{typeLabel(t)}</span>
+                          <span className="block text-xs text-muted-foreground">{OVERTIME_TYPES[t].description}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. Observación */}
+            <Field
+              label="Motivo u observación"
+              htmlFor="ot-notes"
+              hint="Opcional. Ayuda a la Jefa a aprobar más rápido."
+            >
+              <Textarea
+                id="ot-notes"
+                rows={2}
+                placeholder="Ej. Despacho urgente, reparación de máquina"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </Field>
+
+            {canVerify && (
+              <div className="flex items-start gap-2.5 rounded-lg border p-3">
+                <Checkbox
+                  id="ot-approve"
+                  className="mt-0.5"
+                  checked={approveNow}
+                  onCheckedChange={(v) => setApproveNow(v === true)}
+                />
+                <div>
+                  <Label htmlFor="ot-approve">Aprobar de una vez</Label>
+                  <p className="text-xs text-muted-foreground">Quedan aprobadas sin pasar por Auditoría.</p>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Employee Multi Selector */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="caption-mono text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-neutral-400" />
-                Empleados ({selectedEmployeeIds.length} seleccionados) *
-              </label>
+            {warnings.length > 0 && (
+              <div className="flex flex-col gap-1.5 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+                {warnings.map((w) => (
+                  <p key={w} className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
+                    {w}
+                  </p>
+                ))}
+                <p className="text-muted-foreground">Puedes guardar igual si es correcto.</p>
+              </div>
+            )}
+          </DialogBody>
 
-              <button
-                type="button"
-                onClick={handleSelectAllEmployees}
-                className="caption-mono text-[11px] text-neutral-400 hover:text-neutral-900 dark:hover:text-white underline transition"
-              >
-                {selectedEmployeeIds.length === employees.length ? 'Desmarcar todos' : 'Seleccionar todos'}
-              </button>
-            </div>
-
-            <div className="max-h-36 overflow-y-auto border border-[#ebebeb] dark:border-[#262626] rounded-[8px] p-1.5 bg-[#fafafa] dark:bg-[#161616] space-y-1">
-              {employees.map((emp) => {
-                const isSelected = selectedEmployeeIds.includes(emp.id);
-                return (
-                  <div
-                    key={emp.id}
-                    onClick={() => toggleEmployeeSelect(emp.id)}
-                    className={`p-2 rounded-[6px] cursor-pointer flex items-center justify-between transition ${
-                      isSelected
-                        ? 'bg-[#171717] text-white'
-                        : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200'
-                    }`}
-                  >
-                    <div>
-                      <span className="font-medium text-xs">{emp.name}</span>
-                      <span className={`caption-mono block text-[10px] ${isSelected ? 'text-neutral-300' : 'text-neutral-400'}`}>
-                        {emp.position} (CC {emp.documentId})
-                      </span>
-                    </div>
-
-                    <div className={`w-4 h-4 rounded-[4px] border flex items-center justify-center ${isSelected ? 'border-white bg-white/20' : 'border-neutral-300 dark:border-neutral-600'}`}>
-                      {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Tipo de hora extra: en modo hora de salida se calcula automáticamente */}
-          {inputMode === 'departure_time' ? (
-            <div className="p-2.5 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] text-[11px] text-neutral-600 dark:text-neutral-300 font-sans">
-              <span className="caption-mono block text-neutral-700 dark:text-neutral-200 mb-1">Tipo de recargo (automático)</span>
-              {segments.length === 0
-                ? 'Sin horas extras para registrar.'
-                : segments.map((seg) => `${formatHoursDisplay(seg.hours)} ${OVERTIME_TYPES[seg.type].label}`).join(' + ')}
-            </div>
-          ) : (
-          <div>
-            <label className="caption-mono block text-neutral-700 dark:text-neutral-200 mb-1.5">
-              Tipo de Hora Extra / Recargo *
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {(Object.keys(OVERTIME_TYPES) as OvertimeType[]).map((tKey) => {
-                const typeObj = OVERTIME_TYPES[tKey];
-                const isSelected = overtimeType === tKey;
-                return (
-                  <div
-                    key={tKey}
-                    onClick={() => setOvertimeType(tKey)}
-                    className={`p-2.5 rounded-[8px] border cursor-pointer transition ${
-                      isSelected
-                        ? 'border-[#171717] dark:border-white bg-[#171717] text-white dark:bg-white dark:text-[#171717]'
-                        : 'border-[#ebebeb] dark:border-[#262626] bg-[#fafafa] dark:bg-[#161616] text-neutral-700 dark:text-neutral-300 hover:border-neutral-300'
-                    }`}
-                  >
-                    <div className="font-semibold text-xs">{typeObj.label}</div>
-                    <div className={`text-[10px] mt-0.5 font-sans ${isSelected ? 'opacity-80' : 'text-neutral-400'}`}>
-                      {typeObj.description}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          )}
-
-          {/* Notes */}
-          <div>
-            <label className="caption-mono block text-neutral-700 dark:text-neutral-200 mb-1 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-neutral-400" />
-              Observaciones / Motivo
-            </label>
-            <Input
-              type="text"
-              placeholder="Ej. Despacho urgente, reparación de máquina, cierre de mes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full text-xs h-9 px-3"
-            />
-          </div>
-
-          {/* Verificación inmediata: solo Jefa/Admin */}
-          {canVerify && (
-          <div className="p-3 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] flex items-center gap-2.5">
-            <Checkbox
-              id="verifyNow"
-              checked={verifiedByManager}
-              onCheckedChange={(v) => setVerifiedByManager(v === true)}
-            />
-            <label htmlFor="verifyNow" className="text-xs text-neutral-800 dark:text-neutral-200 font-medium cursor-pointer font-sans">
-              Marcar como revisado y verificado por el encargado inmediatamente
-            </label>
-          </div>
-          )}
-
-          {warnings.length > 0 && (
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-[8px] text-[11px] text-amber-800 dark:text-amber-200 space-y-1 font-sans">
-              {warnings.map((w) => (
-                <div key={w} className="flex items-start gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>{w}</span>
-                </div>
-              ))}
-              <p className="text-amber-700/80 dark:text-amber-300/70">Puedes guardar igual si es correcto.</p>
-            </div>
-          )}
-
-          {/* Submit */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
-            <Button variant="outline"
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-medium"
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              disabled={selectedEmployeeIds.length === 0 || effectiveHours <= 0 || isSaving}
-              className="px-5 py-2 text-xs font-medium"
-            >
-              {isSaving ? 'Guardando...' : `Guardar (${selectedEmployeeIds.length}) Registros (${formatHoursDisplay(effectiveHours)})`}
+            <Button type="submit" disabled={!canSave}>
+              {isSaving
+                ? 'Guardando...'
+                : selectedIds.length === 0
+                  ? 'Elige al menos un empleado'
+                  : `Guardar · ${selectedIds.length} empleado${selectedIds.length === 1 ? '' : 's'} · ${formatHoursDisplay(totalHours)}`}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   );
-};
+}
