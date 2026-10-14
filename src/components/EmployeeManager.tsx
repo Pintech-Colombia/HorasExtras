@@ -1,7 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Users, UserPlus, Edit, Trash2, Search, DollarSign, Building, FileText, Upload, Download, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, Edit, Trash2, Search, DollarSign, Building, FileText, Upload, Download, CheckCircle2, X } from 'lucide-react';
 import { Employee, UserRole } from '../types';
 import { formatCurrency } from '../utils/exporters';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { useConfirm } from '@/components/ui/confirm';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 interface EmployeeManagerProps {
   employees: Employee[];
@@ -31,6 +36,7 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
   onUpdateEmployee,
   onDeleteEmployee,
 }) => {
+  const confirm = useConfirm();
   // Jefa y Admin gestionan empleados; Jefa, Contador y Admin gestionan el valor hora
   const canEditEmployees = userRole === 'manager' || userRole === 'admin';
   const canManageSalaries = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
@@ -212,31 +218,31 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
 
           {canEditEmployees && (
             <>
-              <button
+              <Button variant="outline"
                 onClick={handleDownloadTemplate}
-                className="button-secondary text-xs font-medium px-3.5 py-2 rounded-[6px] flex items-center gap-1.5"
+                className="text-xs font-medium px-3.5 py-2 flex items-center gap-1.5"
                 title="Descargar archivo Excel / CSV de ejemplo"
               >
                 <Download className="w-3.5 h-3.5 text-neutral-500" />
                 <span>Plantilla CSV</span>
-              </button>
+              </Button>
 
-              <button
+              <Button variant="outline"
                 onClick={() => fileInputRef.current?.click()}
-                className="button-secondary text-xs font-medium px-3.5 py-2 rounded-[6px] flex items-center gap-1.5"
+                className="text-xs font-medium px-3.5 py-2 flex items-center gap-1.5"
                 title="Importar lista de personal masivamente"
               >
                 <Upload className="w-3.5 h-3.5 text-neutral-700 dark:text-neutral-300" />
                 <span>Importar CSV</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
                 onClick={openAddModal}
-                className="button-primary text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2"
+                className="text-xs font-medium px-4 py-2 flex items-center gap-2"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>Nuevo Empleado</span>
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -254,12 +260,12 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
       <div className="bg-white dark:bg-[#111111] p-3 rounded-[12px] border border-[#ebebeb] dark:border-[#262626] shadow-vercel-subtle flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:max-w-md">
           <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-neutral-400" />
-          <input
+          <Input
             type="text"
             placeholder="Buscar por nombre, cédula, cargo o área..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="form-input w-full text-xs pl-9 pr-3 h-9 rounded-[6px]"
+            className="w-full text-xs pl-9 pr-3 h-9"
           />
         </div>
 
@@ -343,10 +349,14 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
               {canEditEmployees && (
               <button
                 title="Solo se puede eliminar un empleado sin horas registradas. Si tiene historial, márquelo como inactivo."
-                onClick={() => {
-                  if (window.confirm(`¿Seguro que deseas eliminar a ${emp.name}? Si tiene horas registradas no se podrá; márquelo como inactivo.`)) {
-                    onDeleteEmployee(emp.id);
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `¿Eliminar a ${emp.name}?`,
+                    description: 'Si tiene horas registradas no se podrá eliminar; en ese caso márquelo como inactivo.',
+                    confirmText: 'Eliminar',
+                    destructive: true,
+                  });
+                  if (ok) onDeleteEmployee(emp.id);
                 }}
                 className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 font-medium px-2.5 py-1 rounded-[6px] bg-red-50 dark:bg-red-950/30 flex items-center gap-1 transition"
               >
@@ -360,30 +370,29 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
       </div>
 
       {/* Add / Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111111] rounded-[12px] max-w-md w-full border border-[#ebebeb] dark:border-[#262626] shadow-vercel-modal overflow-hidden animate-in fade-in duration-150">
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent showCloseButton={false} aria-describedby={undefined} className="max-w-md">
             <div className="bg-[#171717] text-white p-4 flex items-center justify-between border-b border-[#262626]">
-              <h3 className="font-semibold text-sm">
-                {editingEmployee ? 'Editar Empleado Pintech' : 'Nuevo Empleado Pintech'}
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-neutral-400 hover:text-white cursor-pointer text-xs">
-                ✕
+              <DialogTitle className="font-semibold text-sm text-white">
+                {editingEmployee ? 'Editar Empleado' : 'Nuevo Empleado'}
+              </DialogTitle>
+              <button type="button" onClick={() => setIsModalOpen(false)} aria-label="Cerrar" className="text-neutral-400 hover:text-white cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs overflow-y-auto">
               <div>
                 <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                   Nombre Completo *
                 </label>
-                <input disabled={!canEditEmployees}
+                <Input disabled={!canEditEmployees}
                   type="text"
                   required
                   placeholder="Ej. Carlos Alberto Mendoza"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
+                  className="w-full text-xs h-9 px-3"
                 />
               </div>
 
@@ -391,13 +400,13 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                 <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                   Número de Cédula / Documento *
                 </label>
-                <input disabled={!canEditEmployees}
+                <Input disabled={!canEditEmployees}
                   type="text"
                   required
                   placeholder="Ej. 1020304050"
                   value={documentId}
                   onChange={(e) => setDocumentId(e.target.value)}
-                  className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                  className="w-full text-xs h-9 px-3 font-mono"
                 />
               </div>
 
@@ -406,13 +415,13 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                   <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                     Cargo *
                   </label>
-                  <input disabled={!canEditEmployees}
+                  <Input disabled={!canEditEmployees}
                     type="text"
                     required
                     placeholder="Ej. Técnico Inyección"
                     value={position}
                     onChange={(e) => setPosition(e.target.value)}
-                    className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
+                    className="w-full text-xs h-9 px-3"
                   />
                 </div>
 
@@ -420,17 +429,17 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                   <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                     Área / Depto *
                   </label>
-                  <select disabled={!canEditEmployees}
+                  <NativeSelect disabled={!canEditEmployees}
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="form-input w-full text-xs h-9 px-3 rounded-[6px]"
+                    wrapperClassName="w-full" className="text-xs"
                   >
                     {PINTECH_DEPARTMENTS.map((dept) => (
                       <option key={dept} value={dept}>
                         {dept}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
               </div>
 
@@ -439,13 +448,13 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
                   <label className="caption-mono block text-neutral-600 dark:text-neutral-300 mb-1">
                     Valor Hora Base Ordinaria ($)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     step="500"
                     min="0"
                     value={baseHourlyRate}
                     onChange={(e) => setBaseHourlyRate(parseFloat(e.target.value) || 0)}
-                    className="form-input w-full text-xs h-9 px-3 rounded-[6px] font-mono"
+                    className="w-full text-xs h-9 px-3 font-mono"
                   />
                 </div>
               ) : (
@@ -456,24 +465,23 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({
               )}
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
-                <button
+                <Button variant="outline"
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="button-secondary px-4 py-2 rounded-full text-xs font-medium"
+                  className="px-4 py-2 text-xs font-medium"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="button-primary px-4 py-2 rounded-full text-xs font-medium"
+                  className="px-4 py-2 text-xs font-medium"
                 >
                   Guardar Empleado
-                </button>
+                </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+      </Dialog>
     </div>
   );
 };

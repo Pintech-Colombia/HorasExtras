@@ -22,7 +22,7 @@ Diseñado con una arquitectura moderna desacoplada: **Frontend en React 19**, **
 | Capa | Tecnología |
 | :--- | :--- |
 | **Frontend** | React 19, TypeScript, Vite 6 |
-| **Estilos & UI** | Tailwind CSS v4, Lucide React, Motion |
+| **Estilos & UI** | Tailwind CSS v4, componentes shadcn/ui (Radix), Lucide React, Sonner |
 | **Base de Datos & Auth** | Supabase (PostgreSQL con Row Level Security + Supabase Auth) |
 
 ---
@@ -177,8 +177,37 @@ de cada mes al cierre.
 
 ---
 
+## 🧩 Guía para desarrollar el frontend
+
+**Componentes:** usar siempre los de [`src/components/ui/`](./src/components/ui) (estilo [shadcn/ui](https://ui.shadcn.com), basados en Radix):
+`Button`, `Input`, `PasswordInput`, `NativeSelect`, `Textarea`, `Checkbox`, `Label`, `Field`, `Card`, `Badge`, `Dialog`, `AlertDialog`.
+No crear botones, campos ni ventanas a mano.
+
+**Colores y radios:** definidos una sola vez como variables en [`src/index.css`](./src/index.css) (modo claro y oscuro).
+Usar las clases semánticas (`bg-background`, `bg-card`, `text-muted-foreground`, `border-input`, `bg-primary`…), no colores hexadecimales.
+
+**Confirmaciones y avisos:**
+```tsx
+const confirm = useConfirm();                       // en lugar de window.confirm
+if (await confirm({ title: '¿Eliminar?', destructive: true })) { ... }
+
+toast.success('Guardado');                          // import { toast } from 'sonner'
+toast.error('No se pudo guardar');
+```
+
+**Clases condicionales:** `cn('base', condicion && 'extra')` desde `@/lib/utils` (resuelve conflictos de Tailwind).
+
+**Imports:** el alias `@/` apunta a `src/` (`import { Button } from '@/components/ui/button'`).
+
+**Antes de subir cambios:** `npm run check` (tipos, lint, pruebas y compilación). El mismo chequeo corre automáticamente en cada PR.
+Los cálculos de nómina tienen pruebas en `src/utils/*.test.ts`: si se cambia una regla, se actualiza o agrega su prueba.
+
 ## 📄 Scripts Disponibles
 
-- `npm run dev`: Inicia el servidor de desarrollo local.
-- `npm run build`: Compila el frontend optimizado con Vite para producción.
-- `npm run lint`: Valida tipos de TypeScript con `tsc --noEmit`.
+- `npm run dev`: servidor de desarrollo local.
+- `npm run build`: compila para producción.
+- `npm run typecheck`: valida tipos de TypeScript (modo estricto).
+- `npm run lint`: ESLint.
+- `npm run test`: pruebas de los cálculos (Vitest).
+- `npm run check`: todo lo anterior junto.
+- `npm run format`: formatea con Prettier.

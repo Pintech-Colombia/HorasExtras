@@ -15,6 +15,8 @@ import { AddOvertimeModal } from './components/AddOvertimeModal';
 import { LoginScreen } from './components/LoginScreen';
 import { PintechLogo } from './components/PintechLogo';
 import { SetPasswordScreen } from './components/SetPasswordScreen';
+import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -26,7 +28,6 @@ export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('manager');
   // Modo demostración: solo en desarrollo local y sin Supabase configurado
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // true cuando el usuario llega desde el correo de "Olvidé mi contraseña"
   const [isRecovery, setIsRecovery] = useState<boolean>(false);
@@ -114,11 +115,12 @@ export default function App() {
   };
 
   // Ejecuta una operación contra el servidor; si falla, muestra el error y recarga el estado real
-  const runAction = async (action: () => Promise<void>) => {
+  const runAction = async (action: () => Promise<void>, successMsg?: string) => {
     try {
       await action();
+      if (successMsg) toast.success(successMsg);
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Ocurrió un error inesperado. Intente de nuevo.');
+      toast.error(err?.message || 'Ocurrió un error inesperado. Intente de nuevo.');
       loadData();
     }
   };
@@ -203,9 +205,10 @@ export default function App() {
     try {
       const created = await createRecords(newRecordsData);
       setRecords((prev) => [...created, ...prev]);
+      toast.success(created.length === 1 ? 'Registro guardado' : `${created.length} registros guardados`);
       return true;
     } catch (err: any) {
-      setErrorMsg(err?.message || 'No se pudieron guardar las horas extras.');
+      toast.error(err?.message || 'No se pudieron guardar las horas extras.');
       return false;
     }
   };
@@ -244,7 +247,7 @@ export default function App() {
       })
     );
 
-    await runAction(() => verifyAllMonthRecords(selectedMonth));
+    await runAction(() => verifyAllMonthRecords(selectedMonth), 'Registros del mes aprobados');
   };
 
   // Marca el mes como enviado a contabilidad (bloquea los registros aprobados)
@@ -252,16 +255,17 @@ export default function App() {
     try {
       const count = await markMonthSent(selectedMonth);
       await loadData();
+      toast.success(`${count} registro(s) marcados como enviados y bloqueados`);
       return count;
     } catch (err: any) {
-      setErrorMsg(err?.message || 'No se pudo marcar el mes como enviado.');
+      toast.error(err?.message || 'No se pudo marcar el mes como enviado.');
       return null;
     }
   };
 
   const handleDeleteRecord = async (id: string) => {
     setRecords((prev) => prev.filter((r) => r.id !== id));
-    await runAction(() => deleteRecord(id));
+    await runAction(() => deleteRecord(id), 'Registro eliminado');
   };
 
   const handleUpdateRecord = async (id: string, partial: Partial<OvertimeRecord>) => {
@@ -276,16 +280,17 @@ export default function App() {
     await runAction(async () => {
       const created = await createEmployee(newEmp);
       setEmployees((prev) => [...prev, created]);
-    });
+    }, 'Empleado creado');
   };
 
   const handleAddMultipleEmployees = async (newEmps: Omit<Employee, 'id'>[]): Promise<boolean> => {
     try {
       const createdList = await createMultipleEmployees(newEmps);
       setEmployees((prev) => [...createdList, ...prev]);
+      toast.success(`${createdList.length} empleado(s) importados`);
       return true;
     } catch (err: any) {
-      setErrorMsg(err?.message || 'No se pudieron importar los empleados.');
+      toast.error(err?.message || 'No se pudieron importar los empleados.');
       return false;
     }
   };
@@ -294,25 +299,22 @@ export default function App() {
     setEmployees((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...partial } : e))
     );
-    await runAction(() => updateEmployee(id, partial));
+    await runAction(() => updateEmployee(id, partial), 'Empleado actualizado');
   };
 
   const handleDeleteEmployee = async (id: string) => {
     setEmployees((prev) => prev.filter((e) => e.id !== id));
-    await runAction(() => deleteEmployee(id));
+    await runAction(() => deleteEmployee(id), 'Empleado eliminado');
   };
 
   // Configuración de la Empresa
   const handleUpdateSettings = async (newSettings: CompanySettings) => {
     setSettings(newSettings);
-    await runAction(() => updateCompanySettings(newSettings));
+    await runAction(() => updateCompanySettings(newSettings), 'Configuración guardada');
   };
 
-  const handleResetDefaults = () => {
-    if (window.confirm('¿Deseas restablecer los parámetros de la empresa a los valores iniciales?')) {
-      handleUpdateSettings(INITIAL_SETTINGS);
-    }
-  };
+  // La confirmación se pide en la pantalla de Configuración
+  const handleResetDefaults = () => handleUpdateSettings(INITIAL_SETTINGS);
 
   // Se trabaja mes a mes (los registros ya vienen cargados solo del mes seleccionado)
   const monthRecords = records.filter((r) => r.date.startsWith(selectedMonth));
@@ -404,15 +406,6 @@ export default function App() {
 
       {/* Main View Container con Guardias de Seguridad por Rol */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {errorMsg && (
-          <div className="mb-4 flex items-start justify-between gap-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-[8px] text-xs text-red-800 dark:text-red-200">
-            <span>{errorMsg}</span>
-            <button onClick={() => setErrorMsg(null)} className="font-semibold underline shrink-0">
-              Cerrar
-            </button>
-          </div>
-        )}
-
         {loadError && (
           <div className="mb-4 flex items-start justify-between gap-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-[8px] text-xs text-red-800 dark:text-red-200">
             <span>{loadError}</span>
@@ -494,6 +487,8 @@ export default function App() {
           />
         )}
       </main>
+
+      <Toaster theme={isDarkMode ? 'dark' : 'light'} />
 
       {/* Modal de Registro de Horas Extras */}
       <AddOvertimeModal

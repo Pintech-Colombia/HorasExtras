@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PintechLogo } from './PintechLogo';
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -12,13 +17,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   onContinueOffline,
 }) => {
-  // El registro público está deshabilitado (también debe desactivarse en Supabase)
-  const isSignUp = false;
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role] = useState<'manager' | 'accountant'>('manager');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -42,41 +43,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         return;
       }
 
-      if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              role: 'manager',
-            },
-          },
-        });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
 
-        if (error) throw error;
-
-        if (data.user && !data.session) {
-          setSuccessMsg('Solicitud enviada. Si la cuenta requiere activación previa, consulta la bandeja de entrada.');
-        } else {
-          setSuccessMsg('Registro exitoso. Iniciando sesión...');
-          setTimeout(() => {
-            onLoginSuccess?.();
-          }, 800);
-        }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
-        setSuccessMsg('Sesión iniciada con éxito.');
-        setTimeout(() => {
-          onLoginSuccess?.();
-        }, 600);
-      }
+      setSuccessMsg('Sesión iniciada con éxito.');
+      setTimeout(() => {
+        onLoginSuccess?.();
+      }, 600);
     } catch (err: any) {
       if (import.meta.env.DEV) {
         console.error('Auth debug error:', err);
@@ -86,16 +59,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         setErrorMsg('Credenciales incorrectas o cuenta no autorizada. Verifica tu información.');
       } else if (msg.includes('email not confirmed')) {
         setErrorMsg('No fue posible iniciar sesión. Verifica tus credenciales o el estado de activación de tu cuenta.');
-      } else if (msg.includes('user already registered') || msg.includes('already exists')) {
-        setErrorMsg('No fue posible completar la solicitud. Si ya dispones de una cuenta, intenta acceder directamente.');
-      } else if (msg.includes('password should be at least')) {
-        setErrorMsg('La contraseña no cumple con los requisitos mínimos de longitud (mínimo 6 caracteres).');
       } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
         setErrorMsg('Demasiados intentos. Por motivos de seguridad, espera unos minutos antes de intentar de nuevo.');
       } else {
-        setErrorMsg(isSignUp 
-          ? 'No fue posible procesar el registro con los datos suministrados.' 
-          : 'No fue posible iniciar sesión. Verifica tus credenciales.');
+        setErrorMsg('No fue posible iniciar sesión. Verifica tus credenciales.');
       }
     } finally {
       setLoading(false);
@@ -120,20 +87,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Eyebrow and Headline */}
         <div className="mb-6">
           <span className="font-mono-tech text-[11px] uppercase tracking-wider text-[#666666] dark:text-[#888888] block mb-1">
-            {isForgotPassword ? 'Seguridad' : isSignUp ? 'Registro Corporativo' : 'Autenticación'}
+            {isForgotPassword ? 'Seguridad' : 'Autenticación'}
           </span>
           <h1 className="text-2xl font-semibold tracking-[-0.96px] text-[#171717] dark:text-white leading-snug">
-            {isForgotPassword
-              ? 'Restablece tu contraseña.'
-              : isSignUp
-              ? 'Crea tu cuenta en Pintech.'
-              : 'Bienvenido de nuevo.'}
+            {isForgotPassword ? 'Restablece tu contraseña.' : 'Bienvenido de nuevo.'}
           </h1>
           <p className="text-xs text-[#666666] dark:text-[#888888] mt-1.5 leading-relaxed">
             {isForgotPassword
               ? 'Ingresa tu correo para recibir un enlace de recuperación seguro.'
-              : isSignUp
-              ? 'Ingresa tus datos para registrar y auditar horas extras en planta.'
               : 'Gestión de horas extras, turnos y exportación oficial para nómina.'}
           </p>
         </div>
@@ -160,101 +121,61 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </div>
         )}
 
-        {/* Form Inputs (Vercel form-input style) */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          {isSignUp && !isForgotPassword && (
-            <>
-              <div>
-                <label className="block text-[11px] font-mono-tech uppercase tracking-wider text-[#666666] dark:text-[#888888] mb-1">
-                  Nombre Completo
-                </label>
-                <div className="relative">
-                  <User className="w-3.5 h-3.5 text-[#888888] absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Nombre y apellido"
-                    className="w-full h-10 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] pl-9 pr-3 text-xs text-[#171717] dark:text-white placeholder-[#888888] focus:outline-none focus:border-[#171717] dark:focus:border-white transition-colors"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          <div>
-            <label className="block text-[11px] font-mono-tech uppercase tracking-wider text-[#666666] dark:text-[#888888] mb-1">
-              Correo Electrónico
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Field label="Correo electrónico" htmlFor="login-email">
             <div className="relative">
-              <Mail className="w-3.5 h-3.5 text-[#888888] absolute left-3 top-3" />
-              <input
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="login-email"
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="colaborador@pintech.co"
-                className="w-full h-10 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] pl-9 pr-3 text-xs text-[#171717] dark:text-white placeholder-[#888888] focus:outline-none focus:border-[#171717] dark:focus:border-white transition-colors"
+                placeholder="colaborador@empresa.co"
+                className="h-10 pl-9"
               />
             </div>
-          </div>
+          </Field>
 
           {!isForgotPassword && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-mono-tech uppercase tracking-wider text-[#666666] dark:text-[#888888]">
-                  Contraseña
-                </label>
-                {!isSignUp && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsForgotPassword(true);
-                      setErrorMsg(null);
-                    }}
-                    className="text-[11px] text-[#0070f3] hover:underline cursor-pointer"
-                  >
-                    ¿Olvidaste tu clave?
-                  </button>
-                )}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="login-password">Contraseña</Label>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs"
+                  onClick={() => {
+                    setIsForgotPassword(true);
+                    setErrorMsg(null);
+                  }}
+                >
+                  ¿Olvidaste tu contraseña?
+                </Button>
               </div>
-              <div className="relative">
-                <Lock className="w-3.5 h-3.5 text-[#888888] absolute left-3 top-3" />
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full h-10 bg-white dark:bg-[#111111] border border-[#ebebeb] dark:border-[#262626] rounded-[6px] pl-9 pr-3 text-xs text-[#171717] dark:text-white placeholder-[#888888] focus:outline-none focus:border-[#171717] dark:focus:border-white transition-colors"
-                />
-              </div>
+              <PasswordInput
+                id="login-password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-10"
+              />
             </div>
           )}
 
-          {/* Vercel button-primary: 100px pill shape, ~48px tall, #171717 */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-11 mt-4 rounded-full bg-[#171717] hover:bg-[#262626] dark:bg-white dark:hover:bg-[#ededed] text-white dark:text-[#171717] text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-vercel-subtle cursor-pointer disabled:opacity-50"
-          >
+          <Button type="submit" size="lg" disabled={loading} className="mt-2 w-full">
             {loading ? (
-              <span className="font-mono-tech text-xs">Conectando...</span>
+              'Conectando...'
             ) : (
               <>
-                <span>
-                  {isForgotPassword
-                    ? 'Enviar Enlace de Restablecimiento'
-                    : isSignUp
-                    ? 'Crear Cuenta'
-                    : 'Iniciar Sesión'}
-                </span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                {isForgotPassword ? 'Enviar enlace de recuperación' : 'Iniciar sesión'}
+                <ArrowRight />
               </>
             )}
-          </button>
+          </Button>
 
           {isForgotPassword && (
             <div className="text-center pt-2">
