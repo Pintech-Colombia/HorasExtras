@@ -56,48 +56,48 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onCont
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#000000] flex flex-col justify-between items-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col justify-between items-center p-4 relative overflow-hidden">
       {/* Vercel Multi-Stop Atmospheric Mesh Gradient (Hero Scale) */}
       <div className="absolute top-0 left-0 right-0 h-[460px] bg-vercel-mesh pointer-events-none opacity-80" />
 
       {/* Top Bar Logo */}
       <div className="w-full max-w-5xl pt-6 px-4 flex items-center justify-between relative z-10">
         <PintechLogo size="md" showSubtitle={false} />
-        <span className="font-mono-tech text-[11px] text-[#888888] tracking-tight uppercase">
+        <span className="font-mono-tech text-[11px] text-muted-foreground tracking-tight uppercase">
           Portal de Nómina v2.0
         </span>
       </div>
 
       {/* Main Authentication Card (Vercel card-marketing-large) */}
-      <div className="w-full max-w-[420px] bg-white dark:bg-[#0a0a0a] rounded-[12px] border border-[#ebebeb] dark:border-[#262626] shadow-vercel-float p-8 sm:p-9 relative z-10 my-auto">
+      <div className="w-full max-w-[420px] bg-card rounded-xl border shadow-vercel-float p-8 sm:p-9 relative z-10 my-auto">
         {/* Eyebrow and Headline */}
         <div className="mb-6">
-          <span className="font-mono-tech text-[11px] uppercase tracking-wider text-[#666666] dark:text-[#888888] block mb-1">
+          <span className="font-mono-tech text-[11px] uppercase tracking-wider text-muted-foreground block mb-1">
             Autenticación
           </span>
-          <h1 className="text-2xl font-semibold tracking-[-0.96px] text-[#171717] dark:text-white leading-snug">
+          <h1 className="text-2xl font-semibold tracking-[-0.96px] text-foreground leading-snug">
             Bienvenido de nuevo.
           </h1>
-          <p className="text-xs text-[#666666] dark:text-[#888888] mt-1.5 leading-relaxed">
+          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
             Gestión de horas extras, turnos y exportación oficial para nómina.
           </p>
         </div>
 
         {/* Registro público deshabilitado: las cuentas las crea el administrador */}
-        <p className="mb-5 pb-3 border-b border-[#ebebeb] dark:border-[#262626] text-[11px] text-[#666666] dark:text-[#888888]">
+        <p className="mb-5 pb-3 border-b text-[11px] text-muted-foreground">
           ¿No tienes cuenta? Solicítala al administrador del sistema.
         </p>
 
         {/* Alerts */}
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-[6px] bg-[#f7d4d6] dark:bg-[#330000] border border-[#ee0000]/30 text-[#c50000] dark:text-[#ff6666] text-xs flex items-start gap-2">
+          <div className="mb-4 p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span className="leading-tight">{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="mb-4 p-3 rounded-[6px] bg-[#d3e5ff] dark:bg-[#002244] border border-[#0070f3]/30 text-[#0761d1] dark:text-[#66b3ff] text-xs flex items-start gap-2">
+          <div className="mb-4 p-3 rounded-md border border-success/30 bg-success/10 text-success text-xs flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
             <span className="leading-tight">{successMsg}</span>
           </div>
@@ -162,11 +162,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onCont
 
         {/* Demo Mode Fallback */}
         {onContinueOffline && (
-          <div className="mt-6 pt-4 border-t border-[#ebebeb] dark:border-[#262626] text-center">
+          <div className="mt-6 pt-4 border-t text-center">
             <button
               type="button"
               onClick={onContinueOffline}
-              className="text-[11px] font-mono-tech text-[#888888] hover:text-[#171717] dark:hover:text-white transition-colors cursor-pointer"
+              className="text-[11px] font-mono-tech text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               [Continuar en modo demostración local]
             </button>
@@ -175,7 +175,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onCont
       </div>
 
       {/* Bottom Footer (Vercel Style) */}
-      <footer className="w-full max-w-5xl py-6 px-4 flex flex-col sm:flex-row items-center justify-between text-xs text-[#888888] font-mono-tech relative z-10 border-t border-[#ebebeb] dark:border-[#262626]">
+      <footer className="w-full max-w-5xl py-6 px-4 flex flex-col sm:flex-row items-center justify-between text-xs text-muted-foreground font-mono-tech relative z-10 border-t">
         <span>© {new Date().getFullYear()} Pintech Colombia S.A.S.</span>
         <div className="flex items-center gap-4 mt-2 sm:mt-0">
           <span>Jornada Máxima CST Art. 22</span>
