@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, CheckCircle2, Clock, AlertCircle, Filter, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { OvertimeRecord, Employee, OVERTIME_TYPES, UserRole } from '../types';
 import { getWorkScheduleForDate, formatHoursDisplay } from '../utils/schedule';
+import { getHolidayName } from '../utils/holidays';
 
 interface CalendarViewProps {
   selectedMonth: string; // YYYY-MM
@@ -12,6 +13,7 @@ interface CalendarViewProps {
   onAddForDate: (dateStr: string) => void;
   onDeleteRecord: (id: string) => void;
   onToggleVerifyRecord: (id: string) => void;
+  currentUserId?: string;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -23,8 +25,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onAddForDate,
   onDeleteRecord,
   onToggleVerifyRecord,
+  currentUserId,
 }) => {
-  const canAudit = userRole !== 'supervisor';
+  const canAudit = userRole === 'manager' || userRole === 'accountant' || userRole === 'admin';
+  // Jefa/Admin borran cualquier registro; el supervisor solo sus propios registros pendientes
+  const canDeleteRecord = (rec: OvertimeRecord) =>
+    userRole === 'manager' ||
+    userRole === 'admin' ||
+    (userRole === 'supervisor' && !rec.verifiedByManager && (!rec.createdBy || rec.createdBy === currentUserId));
   const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -199,12 +207,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               const isToday = dateStr === todayStr;
               const isSelected = selectedDate === dateStr;
               const dayOfWeek = new Date(year, month - 1, dayNum).getDay();
-              const isWeekend = dayOfWeek === 0 || dayOfWeek === 0;
+              const holidayName = getHolidayName(dateStr);
+              const isWeekend = dayOfWeek === 0 || Boolean(holidayName);
               const isWednesday = dayOfWeek === 3;
 
               return (
                 <div
                   key={dateStr}
+                  title={holidayName ? `Festivo: ${holidayName}` : undefined}
                   onClick={() => setSelectedDate(dateStr)}
                   className={`min-h-[95px] sm:min-h-[115px] p-2 sm:p-2.5 rounded-[6px] border text-left flex flex-col justify-between transition-all cursor-pointer relative group ${
                     isSelected
@@ -341,13 +351,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           </span>
                         </div>
 
-                        <button
-                          onClick={() => onDeleteRecord(rec.id)}
-                          className="text-[#888888] hover:text-[#ee0000] p-1 transition-colors cursor-pointer"
-                          title="Eliminar registro"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canDeleteRecord(rec) && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`¿Eliminar el registro de ${rec.employeeName}?`)) onDeleteRecord(rec.id);
+                            }}
+                            className="text-[#888888] hover:text-[#ee0000] p-1 transition-colors cursor-pointer"
+                            title="Eliminar registro"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
 
                       {rec.notes && (

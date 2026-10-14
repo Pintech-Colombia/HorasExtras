@@ -1,6 +1,8 @@
-import { Employee, OvertimeRecord, CompanySettings } from '../types';
+// DATOS FICTICIOS SOLO PARA DESARROLLO LOCAL (npm run dev sin Supabase).
+// Nunca se usan en producción: storage.ts solo los carga cuando import.meta.env.DEV es true.
+import { Employee, OvertimeRecord } from '../types';
 
-export const INITIAL_EMPLOYEES: Employee[] = [
+export const DEMO_EMPLOYEES: Employee[] = [
   {
     id: 'emp-1',
     documentId: '1020304050',
@@ -48,16 +50,6 @@ export const INITIAL_EMPLOYEES: Employee[] = [
   },
 ];
 
-export const INITIAL_SETTINGS: CompanySettings = {
-  companyName: 'Pintech Colombia S.A.S.',
-  companyNIT: '901.123.507-9',
-  accountantName: 'Omar (Contador)',
-  accountantEmail: 'contabilidad@pintech.co',
-  managerName: 'Lorena Vargas',
-  managerTitle: 'Jefa de Producción',
-  currencySymbol: '$',
-};
-
 // Helper to construct dates for current year and month
 const getCurrentYearMonth = () => {
   const now = new Date();
@@ -66,7 +58,7 @@ const getCurrentYearMonth = () => {
   return { year, month };
 };
 
-export const getInitialRecords = (): OvertimeRecord[] => {
+export const getDemoRecords = (): OvertimeRecord[] => {
   const { year, month } = getCurrentYearMonth();
 
   return [

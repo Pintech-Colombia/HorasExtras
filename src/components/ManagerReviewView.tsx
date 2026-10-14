@@ -379,13 +379,17 @@ export const ManagerReviewView: React.FC<ManagerReviewViewProps> = ({
                                 <span>{rec.verifiedByManager ? 'Desmarcar' : 'Verificar'}</span>
                               </button>
 
-                              <button
-                                onClick={() => onDeleteRecord(rec.id)}
-                                className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-[6px] transition"
-                                title="Eliminar registro"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {(userRole === 'manager' || userRole === 'admin') && (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`¿Eliminar el registro de ${rec.employeeName}?`)) onDeleteRecord(rec.id);
+                                  }}
+                                  className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-[6px] transition"
+                                  title="Eliminar registro"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </>
                           )}
                         </div>

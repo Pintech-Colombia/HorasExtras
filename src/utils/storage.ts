@@ -1,5 +1,8 @@
-import { Employee, OvertimeRecord, CompanySettings } from '../types';
-import { INITIAL_EMPLOYEES, INITIAL_SETTINGS, getInitialRecords } from '../data/initialData';
+// Almacenamiento local SOLO para el modo demostración de desarrollo (sin Supabase).
+// En producción la app trabaja exclusivamente contra Supabase y nunca usa estos datos.
+import { Employee, OvertimeRecord, CompanySettings, normalizeOvertimeRules } from '../types';
+import { INITIAL_SETTINGS } from '../data/defaults';
+import { DEMO_EMPLOYEES, getDemoRecords } from '../data/demoData';
 
 const KEYS = {
   EMPLOYEES: 'he_app_employees_v1',
@@ -7,80 +10,40 @@ const KEYS = {
   SETTINGS: 'he_app_settings_v1',
 };
 
-export const loadEmployees = (): Employee[] => {
+const load = <T>(key: string, fallback: () => T): T => {
+  if (!import.meta.env.DEV) return fallback();
   try {
-    const data = localStorage.getItem(KEYS.EMPLOYEES);
+    const data = localStorage.getItem(key);
     if (!data) {
-      saveEmployees(INITIAL_EMPLOYEES);
-      return INITIAL_EMPLOYEES;
-    }
-    return JSON.parse(data);
-  } catch (e) {
-    console.error('Error loading employees:', e);
-    return INITIAL_EMPLOYEES;
-  }
-};
-
-export const saveEmployees = (employees: Employee[]) => {
-  try {
-    localStorage.setItem(KEYS.EMPLOYEES, JSON.stringify(employees));
-  } catch (e) {
-    console.error('Error saving employees:', e);
-  }
-};
-
-export const loadRecords = (): OvertimeRecord[] => {
-  try {
-    const data = localStorage.getItem(KEYS.RECORDS);
-    if (!data) {
-      const initial = getInitialRecords();
-      saveRecords(initial);
+      const initial = fallback();
+      localStorage.setItem(key, JSON.stringify(initial));
       return initial;
     }
     return JSON.parse(data);
-  } catch (e) {
-    console.error('Error loading records:', e);
-    return getInitialRecords();
+  } catch {
+    return fallback();
   }
 };
 
-export const saveRecords = (records: OvertimeRecord[]) => {
+const save = (key: string, value: unknown) => {
+  if (!import.meta.env.DEV) return;
   try {
-    localStorage.setItem(KEYS.RECORDS, JSON.stringify(records));
-  } catch (e) {
-    console.error('Error saving records:', e);
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // almacenamiento lleno o bloqueado: se ignora en modo demo
   }
 };
+
+export const loadEmployees = (): Employee[] =>
+  load(KEYS.EMPLOYEES, () => (import.meta.env.DEV ? DEMO_EMPLOYEES : []));
+export const saveEmployees = (employees: Employee[]) => save(KEYS.EMPLOYEES, employees);
+
+export const loadRecords = (): OvertimeRecord[] =>
+  load(KEYS.RECORDS, () => (import.meta.env.DEV ? getDemoRecords() : []));
+export const saveRecords = (records: OvertimeRecord[]) => save(KEYS.RECORDS, records);
 
 export const loadSettings = (): CompanySettings => {
-  try {
-    const data = localStorage.getItem(KEYS.SETTINGS);
-    if (!data) {
-      saveSettings(INITIAL_SETTINGS);
-      return INITIAL_SETTINGS;
-    }
-    return JSON.parse(data);
-  } catch (e) {
-    console.error('Error loading settings:', e);
-    return INITIAL_SETTINGS;
-  }
+  const s = load<CompanySettings>(KEYS.SETTINGS, () => INITIAL_SETTINGS);
+  return { ...INITIAL_SETTINGS, ...s, overtimeRules: normalizeOvertimeRules(s.overtimeRules) };
 };
-
-export const saveSettings = (settings: CompanySettings) => {
-  try {
-    localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
-  } catch (e) {
-    console.error('Error saving settings:', e);
-  }
-};
-
-export const resetDataToDefaults = () => {
-  localStorage.removeItem(KEYS.EMPLOYEES);
-  localStorage.removeItem(KEYS.RECORDS);
-  localStorage.removeItem(KEYS.SETTINGS);
-  return {
-    employees: loadEmployees(),
-    records: loadRecords(),
-    settings: loadSettings(),
-  };
-};
+export const saveSettings = (settings: CompanySettings) => save(KEYS.SETTINGS, settings);

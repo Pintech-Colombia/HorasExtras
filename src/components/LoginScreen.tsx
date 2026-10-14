@@ -12,7 +12,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   onContinueOffline,
 }) => {
-  const [isSignUp, setIsSignUp] = useState(false);
+  // El registro público está deshabilitado (también debe desactivarse en Supabase)
+  const isSignUp = false;
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -137,40 +138,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </p>
         </div>
 
-        {/* Tab switch (Login / SignUp) */}
+        {/* Registro público deshabilitado: las cuentas las crea el administrador */}
         {!isForgotPassword && (
-          <div className="flex border-b border-[#ebebeb] dark:border-[#262626] mb-5 font-mono-tech text-xs">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(false);
-                setErrorMsg(null);
-                setSuccessMsg(null);
-              }}
-              className={`pb-2.5 mr-5 transition-colors border-b-2 font-medium cursor-pointer ${
-                !isSignUp
-                  ? 'border-[#171717] dark:border-white text-[#171717] dark:text-white'
-                  : 'border-transparent text-[#888888] hover:text-[#171717] dark:hover:text-white'
-              }`}
-            >
-              Iniciar Sesión
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(true);
-                setErrorMsg(null);
-                setSuccessMsg(null);
-              }}
-              className={`pb-2.5 transition-colors border-b-2 font-medium cursor-pointer ${
-                isSignUp
-                  ? 'border-[#171717] dark:border-white text-[#171717] dark:text-white'
-                  : 'border-transparent text-[#888888] hover:text-[#171717] dark:hover:text-white'
-              }`}
-            >
-              Crear Cuenta
-            </button>
-          </div>
+          <p className="mb-5 pb-3 border-b border-[#ebebeb] dark:border-[#262626] text-[11px] text-[#666666] dark:text-[#888888]">
+            ¿No tienes cuenta? Solicítala al administrador del sistema.
+          </p>
         )}
 
         {/* Alerts */}

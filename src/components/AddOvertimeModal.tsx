@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, User, FileText, CheckCircle2, X, Info, ArrowRight, Sparkles } from 'lucide-react';
-import { Employee, OvertimeType, OVERTIME_TYPES, OvertimeRecord } from '../types';
-import { getWorkScheduleForDate, calculateOvertimeFromDeparture, formatHoursDisplay } from '../utils/schedule';
+import { Employee, OvertimeType, OVERTIME_TYPES, OvertimeRecord, OvertimeRules } from '../types';
+import {
+  getWorkScheduleForDate,
+  calculateOvertimeFromDeparture,
+  formatHoursDisplay,
+  suggestOvertimeType,
+  OvertimeSegment,
+} from '../utils/schedule';
 
 interface AddOvertimeModalProps {
   isOpen: boolean;
   onClose: () => void;
   employees: Employee[];
   initialDate?: string;
-  onSaveRecords: (records: Omit<OvertimeRecord, 'id' | 'createdAt'>[]) => void;
+  onSaveRecords: (records: Omit<OvertimeRecord, 'id' | 'createdAt'>[]) => Promise<boolean>;
+  rules: OvertimeRules;
+  canVerify: boolean; // solo Jefa/Admin pueden registrar ya verificado
 }
 
 export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
@@ -17,6 +25,8 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
   employees,
   initialDate,
   onSaveRecords,
+  rules,
+  canVerify,
 }) => {
   const [date, setDate] = useState<string>('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
@@ -34,6 +44,7 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
   const [overtimeType, setOvertimeType] = useState<OvertimeType>('diurna');
   const [notes, setNotes] = useState<string>('');
   const [verifiedByManager, setVerifiedByManager] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   useEffect(() => {
     if (initialDate) {
@@ -48,32 +59,35 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
   // Default departure time and overtime type suggestion depending on weekday/weekend
   useEffect(() => {
     if (!date) return;
-    const schedule = getWorkScheduleForDate(date);
-    if (schedule.isWeekend) {
+    const sched = getWorkScheduleForDate(date, rules);
+    if (!sched.hasOrdinaryShift) {
+      setWeekendStartTime(rules.shiftStart);
       setDepartureTime('13:30');
-      setOvertimeType('festiva_diurna');
     } else {
-      if (schedule.dayName === 'Miércoles') {
-        setDepartureTime('18:00'); // 6:00 PM on Wednesday -> 1.5h extra from 4:30 PM
-      } else {
-        setDepartureTime('18:30'); // 6:30 PM on Mon/Tue/Thu/Fri -> 1.5h extra from 5:00 PM
-      }
-      setOvertimeType('diurna');
+      // Sugerencia: 1.5 h después de la salida ordinaria del día
+      const [y, m, d] = date.split('-').map(Number);
+      const end = rules.shiftEnds[String(new Date(y, m - 1, d).getDay())] || '17:00';
+      const [h, min] = end.split(':').map(Number);
+      const suggested = h * 60 + min + 90;
+      setDepartureTime(`${String(Math.floor(suggested / 60) % 24).padStart(2, '0')}:${String(suggested % 60).padStart(2, '0')}`);
     }
-  }, [date]);
+    setOvertimeType(suggestOvertimeType(date, rules));
+  }, [date, rules]);
 
   if (!isOpen) return null;
 
-  const schedule = getWorkScheduleForDate(date);
+  const schedule = getWorkScheduleForDate(date, rules);
 
-  // Calculate effective hours based on mode
+  // Horas efectivas según el modo; en modo "hora de salida" el tipo (diurna/nocturna/festiva) se calcula solo
   let effectiveHours = hours;
   let calculationBreakdown = '';
+  let segments: OvertimeSegment[] = [{ type: overtimeType, hours }];
 
   if (inputMode === 'departure_time') {
-    const calc = calculateOvertimeFromDeparture(date, departureTime, weekendStartTime);
+    const calc = calculateOvertimeFromDeparture(date, departureTime, weekendStartTime, rules);
     effectiveHours = calc.hours;
     calculationBreakdown = calc.breakdown;
+    segments = calc.segments;
   }
 
   const toggleEmployeeSelect = (empId: string) => {
@@ -92,9 +106,10 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedEmployeeIds.length === 0 || effectiveHours <= 0) return;
+    if (selectedEmployeeIds.length === 0 || effectiveHours <= 0 || isSaving) return;
+    const verifyNow = canVerify && verifiedByManager;
 
     const employeesMap = new Map<string, Employee>(employees.map((emp) => [emp.id, emp]));
 
@@ -106,26 +121,32 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
       ? notes.trim() 
       : defaultNote;
 
-    const newRecords: Omit<OvertimeRecord, 'id' | 'createdAt'>[] = selectedEmployeeIds.map((empId) => {
+    const newRecords: Omit<OvertimeRecord, 'id' | 'createdAt'>[] = selectedEmployeeIds.flatMap((empId) => {
       const emp = employeesMap.get(empId);
-      return {
-        date,
-        employeeId: empId,
-        employeeName: emp ? emp.name : 'Empleado',
-        hours: effectiveHours,
-        type: overtimeType,
-        status: verifiedByManager ? 'verified_manager' : 'pending_review',
-        notes: finalNotes,
-        verifiedByManager,
-        verifiedAt: verifiedByManager ? new Date().toISOString() : undefined,
-      };
+      return segments
+        .filter((seg) => seg.hours > 0)
+        .map((seg) => ({
+          date,
+          employeeId: empId,
+          employeeName: emp ? emp.name : 'Empleado',
+          hours: seg.hours,
+          type: seg.type,
+          status: verifyNow ? ('verified_manager' as const) : ('pending_review' as const),
+          notes: finalNotes,
+          verifiedByManager: verifyNow,
+          verifiedAt: verifyNow ? new Date().toISOString() : undefined,
+        }));
     });
 
-    onSaveRecords(newRecords);
+    setIsSaving(true);
+    const ok = await onSaveRecords(newRecords);
+    setIsSaving(false);
+    // Si falló, el formulario queda abierto para reintentar (el error se muestra en pantalla)
+    if (!ok) return;
     onClose();
-    // Reset defaults
     setSelectedEmployeeIds([]);
     setNotes('');
+    setVerifiedByManager(false);
   };
 
   const directPresets = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
@@ -222,8 +243,8 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                     Hora Real de Salida del Empleado
                   </span>
                   <span className="text-[11px] text-neutral-400 font-sans">
-                    {schedule.isWeekend
-                      ? 'Fin de semana (según horario de ingreso y salida)'
+                    {!schedule.hasOrdinaryShift
+                      ? 'Sin jornada ordinaria (se cuenta desde el ingreso)'
                       : `Hora oficial de salida: ${schedule.shiftEnd}`}
                   </span>
                 </div>
@@ -239,10 +260,10 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
                 </div>
               </div>
 
-              {schedule.isWeekend && (
+              {!schedule.hasOrdinaryShift && (
                 <div className="flex items-center justify-between pt-2 border-t border-[#ebebeb] dark:border-[#262626]">
                   <span className="caption-mono text-xs text-neutral-600 dark:text-neutral-300">
-                    Hora de Ingreso Fin de Semana:
+                    Hora de Ingreso:
                   </span>
                   <input
                     type="time"
@@ -357,7 +378,15 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
             </div>
           </div>
 
-          {/* Type of Overtime */}
+          {/* Tipo de hora extra: en modo hora de salida se calcula automáticamente */}
+          {inputMode === 'departure_time' ? (
+            <div className="p-2.5 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] text-[11px] text-neutral-600 dark:text-neutral-300 font-sans">
+              <span className="caption-mono block text-neutral-700 dark:text-neutral-200 mb-1">Tipo de recargo (automático)</span>
+              {segments.length === 0
+                ? 'Sin horas extras para registrar.'
+                : segments.map((seg) => `${formatHoursDisplay(seg.hours)} ${OVERTIME_TYPES[seg.type].label}`).join(' + ')}
+            </div>
+          ) : (
           <div>
             <label className="caption-mono block text-neutral-700 dark:text-neutral-200 mb-1.5">
               Tipo de Hora Extra / Recargo *
@@ -386,6 +415,8 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
             </div>
           </div>
 
+          )}
+
           {/* Notes */}
           <div>
             <label className="caption-mono block text-neutral-700 dark:text-neutral-200 mb-1 flex items-center gap-1.5">
@@ -401,7 +432,8 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
             />
           </div>
 
-          {/* Manager Verification Checkbox */}
+          {/* Verificación inmediata: solo Jefa/Admin */}
+          {canVerify && (
           <div className="p-3 bg-[#fafafa] dark:bg-[#161616] border border-[#ebebeb] dark:border-[#262626] rounded-[8px] flex items-center gap-2.5">
             <input
               type="checkbox"
@@ -414,6 +446,7 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
               Marcar como revisado y verificado por el encargado inmediatamente
             </label>
           </div>
+          )}
 
           {/* Submit */}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ebebeb] dark:border-[#262626]">
@@ -426,10 +459,10 @@ export const AddOvertimeModal: React.FC<AddOvertimeModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={selectedEmployeeIds.length === 0 || effectiveHours <= 0}
+              disabled={selectedEmployeeIds.length === 0 || effectiveHours <= 0 || isSaving}
               className="button-primary px-5 py-2 rounded-full text-xs font-medium"
             >
-              Guardar ({selectedEmployeeIds.length}) Registros ({formatHoursDisplay(effectiveHours)})
+              {isSaving ? 'Guardando...' : `Guardar (${selectedEmployeeIds.length}) Registros (${formatHoursDisplay(effectiveHours)})`}
             </button>
           </div>
         </form>
