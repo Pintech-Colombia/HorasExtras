@@ -43,7 +43,9 @@ export function Navbar() {
   const [month, setMonth] = useSelectedMonth();
   const { records } = useMonthRecords(month);
   const openRecordDialog = useRecordDialog();
-  const { search } = useLocation(); // conserva ?mes= al cambiar de pestaña
+  const { search, pathname } = useLocation(); // conserva ?mes= al cambiar de pestaña
+  // En el calendario del celular se usa el botón flotante
+  const hideRegisterOnMobile = pathname === '/calendario';
 
   const pendingCount = records.filter((r) => !r.verifiedByManager).length;
   const verifiedCount = records.length - pendingCount;
@@ -115,7 +117,11 @@ export function Navbar() {
             </div>
 
             {canRegister && (
-              <Button size="sm" className="rounded-full" onClick={() => openRecordDialog()}>
+              <Button
+                size="sm"
+                className={cn('rounded-full', hideRegisterOnMobile && 'max-md:hidden')}
+                onClick={() => openRecordDialog()}
+              >
                 <Plus />
                 <span className="hidden sm:inline">Registrar Horas</span>
                 <span className="sm:hidden">Registrar</span>
