@@ -15,4 +15,14 @@ export interface ReviewActions {
   onToggleVerify: (id: string) => void;
   onEdit: (record: OvertimeRecord) => void;
   onDelete: (record: OvertimeRecord) => void;
+  /** Selección para copiar o eliminar varios (solo Jefa/Admin). Los enviados no se seleccionan. */
+  selection?: ReviewSelection;
+}
+
+export interface ReviewSelection {
+  selected: Set<string>;
+  allSelected: boolean;
+  someSelected: boolean;
+  toggle: (id: string) => void;
+  toggleAll: () => void;
 }

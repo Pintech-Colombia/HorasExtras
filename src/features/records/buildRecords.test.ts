@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_OVERTIME_RULES, Employee } from '@/types';
-import { buildOvertimeRecords, getRegistrationWarnings } from './buildRecords';
+import { buildCopies, buildOvertimeRecords, getRegistrationWarnings, typeForDate } from './buildRecords';
 
 const emp = (id: string, name: string): Employee => ({
   id,
@@ -73,5 +73,58 @@ describe('getRegistrationWarnings', () => {
   it('no avisa exceso en domingo', () => {
     const w = getRegistrationWarnings({ ...base, date: '2026-10-11', hours: 8, selectedIds: ['a'] });
     expect(w).toEqual([]);
+  });
+});
+
+describe('buildCopies', () => {
+  const original = {
+    id: 'x',
+    date: '2026-10-20', // martes
+    employeeId: 'a',
+    employeeName: 'Ana',
+    hours: 2,
+    type: 'diurna' as const,
+    customMultiplier: 1.25,
+    status: 'verified_manager' as const,
+    notes: 'Despacho',
+    verifiedByManager: true,
+    createdAt: '2026-10-20T12:00:00Z',
+  };
+
+  it('copia a un día hábil como pendiente, con la misma persona, horas y observación', () => {
+    const [copy] = buildCopies({
+      records: [original],
+      targetDate: '2026-10-22',
+      rules: DEFAULT_OVERTIME_RULES,
+      verifyNow: false,
+    });
+    expect(copy).toEqual({
+      date: '2026-10-22',
+      employeeId: 'a',
+      employeeName: 'Ana',
+      hours: 2,
+      type: 'diurna',
+      status: 'pending_review',
+      notes: 'Despacho',
+      verifiedByManager: false,
+      verifiedAt: undefined,
+    });
+    expect(copy).not.toHaveProperty('customMultiplier'); // el porcentaje lo fija el servidor al crear
+  });
+
+  it('a domingo o festivo pasa a festiva, conservando diurna/nocturna', () => {
+    const night = { ...original, type: 'nocturna' as const };
+    const copies = buildCopies({
+      records: [original, night],
+      targetDate: '2026-10-25',
+      rules: DEFAULT_OVERTIME_RULES,
+      verifyNow: true,
+    });
+    expect(copies.map((c) => c.type)).toEqual(['festiva_diurna', 'festiva_nocturna']);
+    expect(copies[0]).toMatchObject({ status: 'verified_manager', verifiedByManager: true });
+  });
+
+  it('de festivo a día hábil vuelve a diurna/nocturna', () => {
+    expect(typeForDate('festiva_nocturna', '2026-10-21', DEFAULT_OVERTIME_RULES)).toBe('nocturna');
   });
 });

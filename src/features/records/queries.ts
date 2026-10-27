@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { OvertimeRecord } from '@/types';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { createRecords, deleteRecord, getRecords, markMonthSent, updateRecord, verifyAllMonthRecords } from './api';
+import {
+  createRecords,
+  deleteRecord,
+  deleteRecords,
+  getRecords,
+  markMonthSent,
+  updateRecord,
+  verifyAllMonthRecords,
+} from './api';
 
 export const recordKeys = {
   all: ['records'] as const,
@@ -56,6 +64,21 @@ export function useDeleteRecord() {
       await queryClient.cancelQueries({ queryKey: recordKeys.all });
       queryClient.setQueriesData<OvertimeRecord[]>({ queryKey: recordKeys.all }, (old) =>
         old?.filter((r) => r.id !== id)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: recordKeys.all }),
+  });
+}
+
+export function useDeleteRecords() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => deleteRecords(ids),
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: recordKeys.all });
+      const set = new Set(ids);
+      queryClient.setQueriesData<OvertimeRecord[]>({ queryKey: recordKeys.all }, (old) =>
+        old?.filter((r) => !set.has(r.id))
       );
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: recordKeys.all }),
