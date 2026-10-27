@@ -88,7 +88,7 @@ Sin variables de Supabase, en desarrollo se abre el modo demostración con datos
 npm run dev
 ```
 
-Abre `http://localhost:5173`.
+Abre `http://localhost:3000`.
 
 ### Entornos: pruebas y producción
 
