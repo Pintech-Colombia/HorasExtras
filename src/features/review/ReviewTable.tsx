@@ -1,6 +1,7 @@
 import { AlertTriangle, Check, Pencil, Trash2, Undo2 } from 'lucide-react';
 import { OVERTIME_TYPES } from '@/types';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { StatusBadge } from '@/features/records/StatusBadge';
 import { TYPE_STYLES, typeShortLabel } from '@/features/calendar/typeStyles';
 import { formatShortDate } from '@/lib/dates';
@@ -12,12 +13,22 @@ import { ReviewActions, ReviewItem } from './reviewItem';
 // Tabla de Auditoría para PC: columnas con ancho fijo para que todo quepa sin desplazamiento horizontal
 export function ReviewTable({ items, actions }: { items: ReviewItem[]; actions: ReviewActions }) {
   const showMoney = items.some((i) => i.cost !== null);
+  const sel = actions.selection;
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-vercel-card">
       <table className="w-full table-fixed text-sm">
         <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
           <tr>
+            {sel && (
+              <th className="w-[44px] py-2.5 pl-4 pr-0">
+                <Checkbox
+                  aria-label="Seleccionar todos los registros visibles"
+                  checked={sel.allSelected ? true : sel.someSelected ? 'indeterminate' : false}
+                  onCheckedChange={sel.toggleAll}
+                />
+              </th>
+            )}
             <th className="w-[110px] px-3 py-2.5 font-medium">Estado</th>
             <th className="w-[100px] px-3 py-2.5 font-medium">Fecha</th>
             <th className="px-3 py-2.5 font-medium">Empleado</th>
@@ -30,7 +41,25 @@ export function ReviewTable({ items, actions }: { items: ReviewItem[]; actions: 
         </thead>
         <tbody className="divide-y">
           {items.map(({ record: rec, employee, cost, dayAlert, locked }) => (
-            <tr key={rec.id} className={cn('align-middle', !rec.verifiedByManager && 'bg-warning/5')}>
+            <tr
+              key={rec.id}
+              className={cn(
+                'align-middle',
+                !rec.verifiedByManager && 'bg-warning/5',
+                sel?.selected.has(rec.id) && 'bg-primary/5'
+              )}
+            >
+              {sel && (
+                <td className="py-2.5 pl-4 pr-0">
+                  {!locked && (
+                    <Checkbox
+                      aria-label={`Seleccionar registro de ${rec.employeeName} del ${formatShortDate(rec.date)}`}
+                      checked={sel.selected.has(rec.id)}
+                      onCheckedChange={() => sel.toggle(rec.id)}
+                    />
+                  )}
+                </td>
+              )}
               <td className="px-3 py-2.5">
                 <StatusBadge record={rec} />
               </td>
@@ -86,7 +115,13 @@ export function ReviewTable({ items, actions }: { items: ReviewItem[]; actions: 
                         {rec.verifiedByManager ? <Undo2 /> : <Check />}
                         <span className="hidden 2xl:inline">{rec.verifiedByManager ? 'Quitar' : 'Aprobar'}</span>
                       </Button>
-                      <Button size="icon-sm" variant="ghost" className="size-7" onClick={() => actions.onEdit(rec)} aria-label="Corregir">
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        className="size-7"
+                        onClick={() => actions.onEdit(rec)}
+                        aria-label="Corregir"
+                      >
                         <Pencil />
                       </Button>
                       <Button

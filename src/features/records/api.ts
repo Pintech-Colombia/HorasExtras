@@ -102,6 +102,26 @@ export const deleteRecord = async (id: string): Promise<void> => {
   if (!data || data.length === 0) fail(null, 'No tiene permisos para eliminar este registro.');
 };
 
+// Elimina varios registros en una sola operación. Si alguno no se pudo (permisos o ya enviado), se avisa.
+export const deleteRecords = async (ids: string[]): Promise<number> => {
+  if (!supabase) {
+    const set = new Set(ids);
+    saveRecords(loadRecords().filter((r) => !set.has(r.id)));
+    return ids.length;
+  }
+
+  const { data, error } = await supabase.from('overtime_records').delete().in('id', ids).select('id');
+  if (error) fail(error, 'No se pudieron eliminar los registros.');
+  const deleted = data?.length ?? 0;
+  if (deleted < ids.length) {
+    fail(
+      null,
+      `Se eliminaron ${deleted} de ${ids.length} registros. Los demás no se pudieron eliminar (permisos o ya enviados).`
+    );
+  }
+  return deleted;
+};
+
 export const verifyAllMonthRecords = async (monthStr: string): Promise<void> => {
   if (!supabase) {
     const now = new Date().toISOString();

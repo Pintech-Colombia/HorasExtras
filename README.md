@@ -70,18 +70,17 @@ npm install
 
 ### 2. Configurar Variables de Entorno
 
-Copia el archivo de ejemplo y completa tus claves:
+En local se trabaja **siempre contra la base de PRUEBAS**, nunca contra producción. Cree el archivo `.env.local`
+(Git lo ignora) con los datos del proyecto `horas-extras-pruebas` (Supabase → Project Settings → API):
 
-```bash
-cp .env.example .env
-```
-
-Contenido del archivo `.env`:
 ```env
-# Supabase (sin estas variables, en desarrollo se abre el modo demostración con datos ficticios)
-VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
+VITE_SUPABASE_URL=https://mmsphopafkiffszbupfq.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key del proyecto de pruebas>
+VITE_ENTORNO=pruebas
 ```
+
+`VITE_ENTORNO=pruebas` muestra una franja amarilla "Entorno de pruebas" para no confundirse.
+Sin variables de Supabase, en desarrollo se abre el modo demostración con datos ficticios en el navegador.
 
 ### 3. Ejecutar en Modo Desarrollo
 
@@ -89,7 +88,23 @@ VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
 npm run dev
 ```
 
-Abre tu navegador en `http://localhost:3000` (o el puerto indicado en la consola).
+Abre `http://localhost:3000`.
+
+### Entornos: pruebas y producción
+
+| | Pruebas | Producción |
+|---|---|---|
+| Supabase | `horas-extras-pruebas` (mmsphopafkiffszbupfq) | `horas-extras` (zasxpbjuruvmtikxertd) |
+| Dónde se usa | Local (`.env.local`) y vistas previas de los PR en Vercel | `main` en Vercel (dominio de la empresa) |
+| Datos | De prueba: se pueden borrar sin problema | **Reales**: nunca probar aquí |
+
+Flujo de trabajo:
+1. Los cambios se hacen en una rama y se prueban en local o en la vista previa del PR (base de pruebas).
+2. Si un cambio toca la base de datos, la migración se aplica **primero en pruebas** y, cuando todo funciona, en producción.
+3. Se hace merge a `main` y Vercel publica en producción.
+
+En Vercel (Settings → Environment Variables) cada variable se guarda por entorno: en **Production** las claves de
+producción; en **Preview** las de pruebas más `VITE_ENTORNO=pruebas`.
 
 ---
 
