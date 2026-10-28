@@ -74,7 +74,7 @@ En local se trabaja **siempre contra la base de PRUEBAS**, nunca contra producci
 (Git lo ignora) con los datos del proyecto `horas-extras-pruebas` (Supabase → Project Settings → API):
 
 ```env
-VITE_SUPABASE_URL=https://mmsphopafkiffszbupfq.supabase.co
+VITE_SUPABASE_URL=<URL del proyecto horas-extras-pruebas>
 VITE_SUPABASE_ANON_KEY=<anon key del proyecto de pruebas>
 VITE_ENTORNO=pruebas
 ```
@@ -94,7 +94,7 @@ Abre `http://localhost:3000`.
 
 | | Pruebas | Producción |
 |---|---|---|
-| Supabase | `horas-extras-pruebas` (mmsphopafkiffszbupfq) | `horas-extras` (zasxpbjuruvmtikxertd) |
+| Supabase | `horas-extras-pruebas` | `horas-extras` |
 | Dónde se usa | Local (`.env.local`) y vistas previas de los PR en Vercel | `main` en Vercel (dominio de la empresa) |
 | Datos | De prueba: se pueden borrar sin problema | **Reales**: nunca probar aquí |
 
@@ -111,7 +111,10 @@ producción; en **Preview** las de pruebas más `VITE_ENTORNO=pruebas`.
 ## 🗄️ Configuración de Supabase (Base de Datos)
 
 > El esquema **no contiene datos de prueba**. Solo crea tablas, reglas de seguridad y la ficha de la empresa.
-> Verifique el NIT y el correo del contador al final de `supabase/schema.sql` antes de ejecutarlo.
+> La ficha de la empresa se crea con datos genéricos; los reales se completan desde la app (Configuración).
+>
+> **Este repositorio es público.** Nunca suba aquí claves (`.env`), contraseñas, ni datos reales de personas
+> (nombres, cédulas, correos, valores hora). Esos datos viven solo en Supabase.
 
 > **¿Ya tiene la base funcionando con una versión anterior?** Ejecute las migraciones que falten, en orden:
 > [`migration_v3.sql`](./supabase/migration_v3.sql) y luego `schema.sql` completo (v2→v3); después
@@ -151,10 +154,11 @@ Cada registro guarda el porcentaje vigente al crearlo: cambiar los recargos no a
 entréguele una contraseña temporal; al primer ingreso la app le obliga a crear la suya.
 
 **Olvidó su contraseña:** la app no envía correos; la persona contacta al administrador, quien le asigna una contraseña
-temporal desde el *SQL Editor* (al entrar, la app le pide crear una nueva):
+temporal desde el *SQL Editor* (al entrar, la app le pide crear una nueva). Use una contraseña distinta cada vez y
+no la escriba en este repositorio (es público):
 ```sql
 update auth.users
-   set encrypted_password = extensions.crypt('Temporal2026*', extensions.gen_salt('bf'))
+   set encrypted_password = extensions.crypt('<contraseña-temporal>', extensions.gen_salt('bf'))
  where email = 'persona@empresa.co';
 update public.profiles set must_change_password = true where email = 'persona@empresa.co';
 ```
