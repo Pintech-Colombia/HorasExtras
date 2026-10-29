@@ -3,7 +3,7 @@
 -- ==============================================================================
 -- Ejecutar UNA sola vez en un proyecto NUEVO de Supabase (SQL Editor).
 -- Este archivo NO contiene datos de prueba: solo crea tablas, reglas de
--- seguridad y la ficha de la empresa (verifique NIT y correos antes de correrlo).
+-- seguridad y una ficha de empresa genérica (se completa desde la app).
 --
 -- Roles:
 --   supervisor  -> registra horas extras (quedan pendientes), borra solo sus pendientes.
@@ -487,9 +487,10 @@ as $$ select now() $$;
 revoke all on function public.keep_alive() from public;
 grant execute on function public.keep_alive() to anon, authenticated;
 
--- 12. FICHA DE LA EMPRESA (única fila; verifique NIT y correo antes de ejecutar) -
+-- 12. FICHA DE LA EMPRESA (única fila) ------------------------------------------
+-- Valores genéricos: los datos reales se completan después desde la app (Configuración).
 insert into public.companies (name, nit, manager_name, manager_title, accountant_name, accountant_email)
-select 'Pintech Colombia S.A.S.', '901.123.507-9', 'Lorena Vargas', 'Jefa de Producción', 'Omar (Contador)', 'contabilidad@pintech.co'
+select 'Nombre de la empresa', '', 'Nombre de la jefa', 'Jefa de Producción', 'Nombre del contador', ''
 where not exists (select 1 from public.companies);
 
 -- 13. PERFILES PARA USUARIOS QUE YA EXISTÍAN (proyecto reanudado) -------------
@@ -526,6 +527,6 @@ grant execute on function public.current_company_id() to authenticated;
 -- 2. Authentication > Users > "Invite user" para cada persona.
 -- 3. Asigne roles (ejemplo). Cada usuario debe crear su contraseña propia al primer ingreso:
 --      update public.profiles set role = 'admin'      where email = 'admin@empresa.co';
---      update public.profiles set role = 'manager'    where email = 'lorena@empresa.co';
---      update public.profiles set role = 'accountant' where email = 'omar@empresa.co';
+--      update public.profiles set role = 'manager'    where email = 'jefa@empresa.co';
+--      update public.profiles set role = 'accountant' where email = 'contador@empresa.co';
 -- ==============================================================================
